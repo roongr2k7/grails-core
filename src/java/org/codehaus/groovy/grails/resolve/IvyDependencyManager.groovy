@@ -243,7 +243,7 @@ class IvyDependencyManager extends AbstractIvyDependencyManager implements Depen
 
                 docs   "org.xhtmlrenderer:core-renderer:R8",
                        "com.lowagie:itext:2.0.8",
-                       "radeox:radeox:1.0-b2"
+                       "org.grails:grails-radeox:1.0-b4"
 
                 // dependencies needed during development, but not for deployment
                 provided "javax.servlet:servlet-api:2.5",
