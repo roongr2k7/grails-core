@@ -57,6 +57,12 @@
             <name>Spring Portfolio Milestone Repository</name>
             <url>http://s3.amazonaws.com/maven.springframework.org/milestone</url>
         </repository>
+
+        <repository>
+            <id>codehaus-snapshots</id>
+            <name>Codehaus Snapshots Repository</name>            
+            <url>http://snapshots.repository.codehaus.org/</url>
+        </repository>
     </repositories>
 
     <dependencies>
