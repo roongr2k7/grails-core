@@ -86,7 +86,7 @@ task appFilesJars {
 distJars = tasks.withType(Jar).matching({ jar -> !jar.appFileJar } as Spec)
 
 task libs {
-    destinationDir = 'dist'
+    destinationDir = "${projectDir}/dist"
     dependsOn { distJars.all }
 }
 
