@@ -376,9 +376,6 @@ public class GrailsScriptRunner {
      * Runs Grails in interactive mode.
      */
     private void runInteractive() {
-        out.println("\n--------------------------------------------------------");
-        out.println("Interactive mode ready. Enter a Grails command or type \"exit\" to quit interactive mode (hit ENTER to run the last command)");
-        String prompt = "> ";
 
         // Disable exiting
         System.setProperty("grails.disable.exit", "true");
@@ -386,12 +383,15 @@ public class GrailsScriptRunner {
 
         ScriptAndArgs script = new ScriptAndArgs();
         String env = null;
+
+        ui.message("--------------------------------------------------------");
+        String enteredName = helper.userInput("Interactive mode ready. Enter a Grails command or type " + 
+                "\"exit\" to quit interactive mode (hit ENTER to run the last command)");
+
         while (true) {
             // Clear unhelpful system properties.
             System.clearProperty("grails.env.set");
             System.clearProperty(Environment.KEY);
-
-            String enteredName = helper.userInput(prompt);
 
             if (enteredName != null && enteredName.trim().length() > 0) {
                 script = processArgumentsAndReturnScriptName(enteredName);
@@ -409,7 +409,7 @@ public class GrailsScriptRunner {
             }
 
             if (script.name == null) {
-                consoleOut.println("You must enter a command.\n");
+                ui.message("You must enter a command.");
                 continue;
             }
             else if (script.name.equalsIgnoreCase("exit") || script.name.equalsIgnoreCase("quit")) {
@@ -421,19 +421,20 @@ public class GrailsScriptRunner {
                 callPluginOrGrailsScript(script.name, env);
             }
             catch (ScriptNotFoundException ex) {
-                consoleOut.println("No script found for " + script.name);
+                ui.message("No script found for " + script.name);
             }
             catch (Throwable ex) {
                 if (ex.getCause() instanceof ScriptExitException) {
-                    consoleOut.println("Script exited with code " + ((ScriptExitException) ex.getCause()).getExitCode());
+                    ui.message("Script exited with code " + ((ScriptExitException) ex.getCause()).getExitCode());
                 }
                 else {
-                    consoleOut.println("Script threw exception");
+                    ui.message("Script threw exception");
                     ex.printStackTrace(out);
                 }
             }
             long end = System.currentTimeMillis();
-            consoleOut.println("\n---- Command completed in " + (end - now) + "ms");
+            ui.message("");
+            enteredName = helper.userInput("---- Command completed in " + (end - now) + "ms");
         }
     }
 
