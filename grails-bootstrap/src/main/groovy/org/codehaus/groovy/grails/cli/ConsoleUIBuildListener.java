@@ -107,7 +107,7 @@ public class ConsoleUIBuildListener implements BuildListener {
      * @see BuildEvent#getException()
      */
     public final void taskFinished(final BuildEvent finish) {
-        ui.progressTicker("|");
+        ui.progressTicker("#");
         if (finish.getTask().getTaskName().equals("input")) {
             setToCachedOut(finish.getProject());
         }
