@@ -19,8 +19,8 @@ import grails.web.Action;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MissingPropertyException;
-import org.apache.commons.beanutils.MethodUtils;
 import org.codehaus.groovy.grails.web.servlet.mvc.exceptions.ControllerExecutionException;
+import org.springframework.util.ReflectionUtils;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -34,26 +34,28 @@ import java.lang.reflect.Method;
  */
 public class MixedGrailsControllerHelper extends AbstractGrailsControllerHelper {
 
-
     @Override
-    protected Object retrieveAction(GroovyObject controller, String actionName, HttpServletResponse response) {
-        Method mAction = MethodUtils.getAccessibleMethod(controller.getClass(),actionName,  MethodGrailsControllerHelper.NOARGS);
+    protected Object retrieveAction(GroovyObject controller, @SuppressWarnings("hiding") String actionName,
+                 HttpServletResponse response) {
+        Method mAction = ReflectionUtils.findMethod(controller.getClass(), actionName, MethodGrailsControllerHelper.NOARGS);
+        if (mAction != null) {
+            ReflectionUtils.makeAccessible(mAction);
+        }
 
         if (mAction != null && mAction.getAnnotation(Action.class) != null) {
             return mAction;
-        } else {
-            try {
-                return controller.getProperty(actionName);
-            } catch (MissingPropertyException mpe) {
-                try {
-                    response.sendError(HttpServletResponse.SC_NOT_FOUND);
-                    return null;
-                } catch (IOException e) {
-                    throw new ControllerExecutionException("I/O error sending 404 error", e);
-                }
-            }
         }
 
+        try {
+            return controller.getProperty(actionName);
+        } catch (MissingPropertyException mpe) {
+            try {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return null;
+            } catch (IOException e) {
+                throw new ControllerExecutionException("I/O error sending 404 error", e);
+            }
+        }
     }
 
     @Override
@@ -61,9 +63,8 @@ public class MixedGrailsControllerHelper extends AbstractGrailsControllerHelper 
         try {
             if (action.getClass() == Method.class) {
                 return ((Method) action).invoke(controller);
-            } else {
-                return ((Closure) action).call();
             }
+            return ((Closure<?>) action).call();
         } catch (Exception e) {
             throw new ControllerExecutionException("Runtime error executing action", e);
         }

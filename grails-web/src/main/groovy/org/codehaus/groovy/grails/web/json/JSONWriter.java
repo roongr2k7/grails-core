@@ -115,7 +115,7 @@ public class JSONWriter {
             this.comma = true;
             return this;
         }
-        throw new JSONException("Value out of sequence.");
+        throw new JSONException("Value out of sequence: expected mode to be OBJECT or ARRAY when writing '" + s + "' but was " + this.mode);
     }
 
     protected void comma() {
@@ -140,7 +140,7 @@ public class JSONWriter {
             this.comma = false;
             return this;
         }
-        throw new JSONException("Misplaced array.");
+        throw new JSONException("Misplaced array: expected mode of INIT, OBJECT or ARRAY but was " + this.mode);
     }
 
     /**
@@ -172,7 +172,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter endArray() {
-        return this.end(ARRAY, ']');
+        return end(ARRAY, ']');
     }
 
     /**
@@ -182,7 +182,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter endObject() {
-        return this.end(KEY, '}');
+        return end(KEY, '}');
     }
 
     /**
@@ -210,7 +210,7 @@ public class JSONWriter {
                 throw new JSONException(e);
             }
         }
-        throw new JSONException("Misplaced key.");
+        throw new JSONException("Misplaced key: expected mode of KEY but was " + this.mode);
     }
 
 
@@ -231,7 +231,7 @@ public class JSONWriter {
             this.comma = false;
             return this;
         }
-        throw new JSONException("Misplaced object.");
+        throw new JSONException("Misplaced object: expected mode of INIT, OBJECT or ARRAY but was " + this.mode);
 
     }
 
@@ -271,7 +271,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter value(boolean b) {
-        return this.append(b ? "true" : "false");
+        return append(b ? "true" : "false");
     }
 
     /**
@@ -281,7 +281,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter value(double d) {
-        return this.value(new Double(d));
+        return value(new Double(d));
     }
 
     /**
@@ -291,7 +291,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter value(long l) {
-        return this.append(Long.toString(l));
+        return append(Long.toString(l));
     }
 
 
@@ -303,7 +303,7 @@ public class JSONWriter {
      * @return this
      */
     public JSONWriter value(Object o) {
-        return this.append(JSONObject.valueToString(o));
+        return append(JSONObject.valueToString(o));
     }
 
     /**
@@ -316,5 +316,4 @@ public class JSONWriter {
         KEY,
         DONE
     }
-
 }

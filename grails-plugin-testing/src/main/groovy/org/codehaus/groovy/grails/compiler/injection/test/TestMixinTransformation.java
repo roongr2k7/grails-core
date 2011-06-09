@@ -17,6 +17,7 @@
 package org.codehaus.groovy.grails.compiler.injection.test;
 
 import grails.test.mixin.TestMixin;
+import grails.test.mixin.support.MixinMethod;
 import grails.util.GrailsNameUtils;
 import groovy.lang.GroovyObjectSupport;
 import junit.framework.TestCase;
@@ -46,16 +47,16 @@ import java.util.List;
  */
 @GroovyASTTransformation(phase = CompilePhase.CANONICALIZATION)
 public class TestMixinTransformation implements ASTTransformation{
+    public static final AnnotationNode MIXIN_METHOD_ANNOTATION = new AnnotationNode(new ClassNode(MixinMethod.class));
     private static final ClassNode MY_TYPE = new ClassNode(TestMixin.class);
     private static final String MY_TYPE_NAME = "@" + MY_TYPE.getNameWithoutPackage();
     public static final String OBJECT_CLASS = "java.lang.Object";
     public static final String SPEC_CLASS = "spock.lang.Specification";
-    private static final String JUNIT3_CLASS = "junit.framework.TestCase" ;
+    private static final String JUNIT3_CLASS = "junit.framework.TestCase";
     public static final String SET_UP_METHOD = "setUp";
     public static final VariableExpression THIS_EXPRESSION = new VariableExpression("this");
     public static final String TEAR_DOWN_METHOD = "tearDown";
     public static final ClassNode GROOVY_OBJECT_CLASS_NODE = new ClassNode(GroovyObjectSupport.class);
-
 
     public void visit(ASTNode[] astNodes, SourceUnit source) {
         if (!(astNodes[0] instanceof AnnotationNode) || !(astNodes[1] instanceof AnnotatedNode)) {
@@ -85,10 +86,10 @@ public class TestMixinTransformation implements ASTTransformation{
     protected ListExpression getListOfClasses(AnnotationNode node) {
         Expression value = node.getMember("value");
         ListExpression values = null;
-        if(value instanceof ListExpression) {
+        if (value instanceof ListExpression) {
             values = (ListExpression) value;
         }
-        else if(value instanceof ClassExpression) {
+        else if (value instanceof ClassExpression) {
             values = new ListExpression();
             values.addExpression(value);
         }
@@ -96,7 +97,7 @@ public class TestMixinTransformation implements ASTTransformation{
     }
 
     public void weaveMixinsIntoClass(ClassNode classNode, ListExpression values) {
-        if(values != null) {
+        if (values != null) {
             boolean isJunit3 = isJunit3Test(classNode);
             List<MethodNode> beforeMethods = null;
             List<MethodNode> afterMethods = null;
@@ -105,7 +106,7 @@ public class TestMixinTransformation implements ASTTransformation{
                 afterMethods = new ArrayList<MethodNode>();
             }
             for (Expression current : values.getExpressions()) {
-                if(current instanceof ClassExpression) {
+                if (current instanceof ClassExpression) {
                     ClassExpression ce = (ClassExpression) current;
 
                     ClassNode mixinClassNode = ce.getType();
@@ -115,33 +116,37 @@ public class TestMixinTransformation implements ASTTransformation{
                     GrailsASTUtils.addFieldIfNonExistent(classNode, mixinClassNode, fieldName);
                     VariableExpression fieldReference = new VariableExpression(fieldName);
 
-
-
                     while (!mixinClassNode.getName().equals(OBJECT_CLASS)) {
                         final List<MethodNode> mixinMethods = mixinClassNode.getMethods();
 
                         int beforeClassMethodCount = 0;
                         int afterClassMethodCount = 0;
                         for (MethodNode mixinMethod : mixinMethods) {
-                            if(isCandidateMethod(mixinMethod) && !hasDeclaredMethod(classNode, mixinMethod)) {
-                                if(mixinMethod.isStatic()) {
-                                    GrailsASTUtils.addDelegateStaticMethod(classNode, mixinMethod);
+                            if (isCandidateMethod(mixinMethod) && !hasDeclaredMethod(classNode, mixinMethod)) {
+                                if (mixinMethod.isStatic()) {
+                                    MethodNode methodNode = GrailsASTUtils.addDelegateStaticMethod(classNode, mixinMethod);
+                                    if (methodNode != null) {
+                                        methodNode.addAnnotation(MIXIN_METHOD_ANNOTATION);
+                                    }
                                 }
                                 else {
-                                    GrailsASTUtils.addDelegateInstanceMethod(classNode,fieldReference, mixinMethod, false);
+                                    MethodNode methodNode = GrailsASTUtils.addDelegateInstanceMethod(classNode, fieldReference, mixinMethod, false);
+                                    if (methodNode != null) {
+                                        methodNode.addAnnotation(MIXIN_METHOD_ANNOTATION);
+                                    }
                                 }
-                                if(isJunit3) {
+                                if (isJunit3) {
 
-                                    if(hasAnnotation(mixinMethod, Before.class)) {
+                                    if (hasAnnotation(mixinMethod, Before.class)) {
                                         beforeMethods.add(mixinMethod);
                                     }
-                                    if(hasAnnotation(mixinMethod, BeforeClass.class)) {
+                                    if (hasAnnotation(mixinMethod, BeforeClass.class)) {
                                         beforeMethods.add(beforeClassMethodCount++, mixinMethod);
                                     }
-                                    if(hasAnnotation(mixinMethod, After.class)) {
+                                    if (hasAnnotation(mixinMethod, After.class)) {
                                         afterMethods.add(mixinMethod);
                                     }
-                                    if(hasAnnotation(mixinMethod, AfterClass.class)) {
+                                    if (hasAnnotation(mixinMethod, AfterClass.class)) {
                                         afterMethods.add(afterClassMethodCount++, mixinMethod);
                                     }
                                 }
@@ -150,27 +155,26 @@ public class TestMixinTransformation implements ASTTransformation{
 
                         mixinClassNode = mixinClassNode.getSuperClass();
                     }
-
-
                 }
             }
-            if(isJunit3) {
+
+            if (isJunit3) {
                 addMethodCallsToMethod(classNode, SET_UP_METHOD, beforeMethods);
                 addMethodCallsToMethod(classNode, TEAR_DOWN_METHOD, afterMethods);
             }
         }
     }
 
-    private boolean hasDeclaredMethod(ClassNode classNode, MethodNode mixinMethod) {
+    protected boolean hasDeclaredMethod(ClassNode classNode, MethodNode mixinMethod) {
         return classNode.hasDeclaredMethod(mixinMethod.getName(), mixinMethod.getParameters());
     }
 
-    private boolean hasAnnotation(MethodNode mixinMethod, Class beforeClass) {
+    protected boolean hasAnnotation(MethodNode mixinMethod, Class<?> beforeClass) {
         return !mixinMethod.getAnnotations(new ClassNode(beforeClass)).isEmpty();
     }
 
     protected void addMethodCallsToMethod(ClassNode classNode, String name, List<MethodNode> methods) {
-        if(methods != null && !methods.isEmpty()) {
+        if (methods != null && !methods.isEmpty()) {
             BlockStatement setupMethodBody = getOrCreateNoArgsMethodBody(classNode, name);
             for (MethodNode beforeMethod : methods) {
                 setupMethodBody.addStatement(new ExpressionStatement(new MethodCallExpression(THIS_EXPRESSION, beforeMethod.getName(), GrailsArtefactClassInjector.ZERO_ARGS)));
@@ -185,17 +189,17 @@ public class TestMixinTransformation implements ASTTransformation{
 
     protected BlockStatement getOrCreateMethodBody(ClassNode classNode, MethodNode setupMethod, String name) {
         BlockStatement methodBody;
-        if(setupMethod.getDeclaringClass().getName().equals(TestCase.class.getName())) {
+        if (setupMethod.getDeclaringClass().getName().equals(TestCase.class.getName())) {
             methodBody = new BlockStatement();
             setupMethod = new MethodNode(name, Modifier.PUBLIC,setupMethod.getReturnType(), GrailsArtefactClassInjector.ZERO_PARAMETERS,null, methodBody);
             classNode.addMethod(setupMethod);
         }
         else {
             final Statement setupMethodBody = setupMethod.getCode();
-            if(!(setupMethodBody instanceof BlockStatement)) {
+            if (!(setupMethodBody instanceof BlockStatement)) {
                 methodBody = new BlockStatement();
-                if(setupMethodBody != null) {
-                    if(!(setupMethodBody instanceof ReturnStatement)) {
+                if (setupMethodBody != null) {
+                    if (!(setupMethodBody instanceof ReturnStatement)) {
                         methodBody.addStatement(setupMethodBody);
                     }
                 }
@@ -204,8 +208,6 @@ public class TestMixinTransformation implements ASTTransformation{
             else {
                 methodBody = (BlockStatement) setupMethodBody;
             }
-
-
         }
         return methodBody;
     }
@@ -220,8 +222,8 @@ public class TestMixinTransformation implements ASTTransformation{
 
     private boolean isSubclassOf(ClassNode classNode, String testType) {
         ClassNode currentSuper = classNode.getSuperClass();
-        while(currentSuper != null && !currentSuper.getName().equals(OBJECT_CLASS)) {
-            if(currentSuper.getName().equals(testType)) return true;
+        while (currentSuper != null && !currentSuper.getName().equals(OBJECT_CLASS)) {
+            if (currentSuper.getName().equals(testType)) return true;
             currentSuper = currentSuper.getSuperClass();
         }
         return false;
@@ -236,5 +238,4 @@ public class TestMixinTransformation implements ASTTransformation{
                 !Modifier.isAbstract(declaredMethod.getModifiers()) &&
                 !groovyMethods.hasMethod(declaredMethod.getName(), declaredMethod.getParameters());
     }
-
 }

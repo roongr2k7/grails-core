@@ -15,12 +15,12 @@
  */
 
 import grails.util.GrailsUtil
- 
+
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.commons.ApplicationHolder
 import org.codehaus.groovy.grails.support.PersistenceContextInterceptor
 import org.codehaus.groovy.grails.web.context.GrailsConfigUtils
-
+import org.codehaus.groovy.grails.compiler.*
 import org.codehaus.groovy.grails.test.junit4.JUnit4GrailsTestType
 import org.codehaus.groovy.grails.test.support.GrailsTestMode
 import org.codehaus.groovy.grails.test.report.junit.JUnitReportsFactory
@@ -63,9 +63,6 @@ targetPhasesAndTypes = [:]
 // Passed to the test runners to facilitate event publishing
 testEventPublisher = new GrailsTestEventPublisher(event)
 
-// Add a listener to write test status updates to the console
-eventListener.addGrailsBuildListener(new GrailsTestEventConsoleReporter(System.out))
-
 // Add a listener to generate our JUnit reports.
 eventListener.addGrailsBuildListener(new JUnitReportProcessor())
 
@@ -95,11 +92,11 @@ testReportsDir = grailsSettings.testReportsDir
 testSourceDir = grailsSettings.testSourceDir
 
 // The 'styledir' argument to the 'junitreport' ant task (null == default provided by Ant)
-if(grailsSettings.grailsHome) {
+if (grailsSettings.grailsHome) {
     junitReportStyleDir = new File(grailsSettings.grailsHome, "src/resources/tests")
-	if(!junitReportStyleDir.exists()) {
-		junitReportStyleDir = new File(grailsSettings.grailsHome, "grails-resources/src/grails/home/tests")
-	}
+    if (!junitReportStyleDir.exists()) {
+        junitReportStyleDir = new File(grailsSettings.grailsHome, "grails-resources/src/grails/home/tests")
+    }
 }
 
 // Set up an Ant path for the tests.
@@ -178,9 +175,6 @@ target(allTests: "Runs the project's tests.") {
 
             // Add a blank line before the start of this phase so that it
             // is easier to distinguish
-            println()
-
-            event("StatusUpdate", ["Starting $phase test phase"])
             event("TestPhaseStart", [phase])
 
             "${phase}TestPhasePreparation"()
@@ -196,12 +190,17 @@ target(allTests: "Runs the project's tests.") {
         }
     }
     finally {
-        String msg = testsFailed ? "\nTests FAILED" : "\nTests PASSED"
+        String msg = testsFailed ? "Tests FAILED" : "Tests PASSED"
         if (createTestReports) {
             event("TestProduceReports", [])
             msg += " - view reports in ${testReportsDir}"
         }
-        event("StatusFinal", [msg])
+		if(testsFailed) {
+			console.error(msg)
+		}
+		else {
+			console.addStatus(msg)
+		}
         event("TestPhasesEnd", [])
     }
 
@@ -265,28 +264,21 @@ runTests = { GrailsTestType type, File compiledClassesDir ->
     if (testCount) {
         try {
             event("TestSuiteStart", [type.name])
-            println ""
-            println "-------------------------------------------------------"
-            println "Running ${testCount} $type.name test${testCount > 1 ? 's' : ''}..."
+            console.updateStatus "Running ${testCount} $type.name test${testCount > 1 ? 's' : ''}..."
 
             def start = new Date()
             def result = type.run(testEventPublisher)
             def end = new Date()
 
-            event("StatusUpdate", ["Tests Completed in ${end.time - start.time}ms"])
+            console.addStatus "Completed $testCount $type.name test${testCount > 1 ? 's' : ''}, ${result.failCount} failed in ${end.time - start.time}ms"
+			console.lastMessage = ""
 
             if (result.failCount > 0) testsFailed = true
-
-            println "-------------------------------------------------------"
-            println "Tests passed: ${result.passCount}"
-            println "Tests failed: ${result.failCount}"
-            println "-------------------------------------------------------"
             event("TestSuiteEnd", [type.name])
+
         }
         catch (Exception e) {
-            event("StatusFinal", ["Error running $type.name tests: ${e.toString()}"])
-            GrailsUtil.deepSanitize(e)
-            e.printStackTrace()
+			console.error "Error running $type.name tests: ${e.toString()}", e
             testsFailed = true
         }
         finally {
@@ -296,13 +288,15 @@ runTests = { GrailsTestType type, File compiledClassesDir ->
 }
 
 initPersistenceContext = {
-	if(appCtx != null)
-    	appCtx.getBeansOfType(PersistenceContextInterceptor).values()*.init()
+    if (appCtx != null) {
+        appCtx.getBeansOfType(PersistenceContextInterceptor).values()*.init()
+    }
 }
 
-destroyPersistenceContext = {	
-	if(appCtx != null)
-    	appCtx.getBeansOfType(PersistenceContextInterceptor).values()*.destroy()
+destroyPersistenceContext = {
+    if (appCtx != null) {
+        appCtx.getBeansOfType(PersistenceContextInterceptor).values()*.destroy()
+    }
 }
 
 unitTestPhasePreparation = {}
@@ -313,7 +307,7 @@ unitTestPhaseCleanUp = {}
  */
 integrationTestPhasePreparation = {
     packageTests()
-    bootstrap()
+    bootstrapOnce()
 
     // Get the Grails application instance created by the bootstrap process.
     def app = appCtx.getBean(GrailsApplication.APPLICATION_ID)
@@ -323,6 +317,13 @@ integrationTestPhasePreparation = {
 
     initPersistenceContext()
 
+	if(org.codehaus.groovy.grails.cli.interactive.InteractiveMode.current || GrailsProjectWatcher.isReloadingAgentPresent()) {
+		// if interactive mode is running start the project change watcher
+		if(!GrailsProjectWatcher.isActive()) {
+			def watcher = new GrailsProjectWatcher(projectCompiler, pluginManager)
+		    watcher.start()			
+		}
+	}
     GrailsConfigUtils.configureServletContextAttributes(appCtx.servletContext, app, pluginManager, appCtx)
     GrailsConfigUtils.executeGrailsBootstraps(app, appCtx, appCtx.servletContext)
 }
@@ -331,8 +332,10 @@ integrationTestPhasePreparation = {
  * Shuts down the bootstrapped Grails application.
  */
 integrationTestPhaseCleanUp = {
-    destroyPersistenceContext()
-    appCtx?.close()
+	if(!(org.codehaus.groovy.grails.cli.interactive.InteractiveMode.current || GrailsProjectWatcher.isReloadingAgentPresent())) {
+	    destroyPersistenceContext()
+	    appCtx?.close()		
+	}
 }
 
 /**
@@ -343,14 +346,14 @@ functionalTestPhasePreparation = {
     runningFunctionalTestsInline = !runningFunctionalTestsAgainstWar && (!testOptions.containsKey('baseUrl') || testOptions.inline)
 
     if (runningFunctionalTestsAgainstWar) {
-		includeTargets << grailsScript("_GrailsWar")
+        includeTargets << grailsScript("_GrailsWar")
         // need to swap out the args map so any test phase/targetting patterns
         // aren't intepreted as the war name.
         def realArgsMap = argsMap
         argsMap = [:]
         war()
         argsMap = realArgsMap
-        
+
         testOptions.https ? runWarHttps() : runWar()
     } else if (runningFunctionalTestsInline) {
         packageApp()
@@ -359,13 +362,13 @@ functionalTestPhasePreparation = {
         appCtx = ApplicationHolder.application.mainContext
         initPersistenceContext()
     }
-    
+
     if (testOptions.containsKey('baseUrl')) {
         functionalBaseUrl = testOptions.baseUrl
     } else {
-        functionalBaseUrl = (testOptions.httpsBaseUrl ? 'https' : 'http') + "://localhost:$serverPort$serverContextPath/" 
+        functionalBaseUrl = (testOptions.httpsBaseUrl ? 'https' : 'http') + "://localhost:$serverPort$serverContextPath/"
     }
-    
+
     System.setProperty(grailsSettings.FUNCTIONAL_BASE_URL_PROPERTY, functionalBaseUrl)
 }
 
@@ -378,11 +381,11 @@ functionalTestPhaseCleanUp = {
         appCtx?.close()
         appCtx = prevAppCtx
     }
-    
+
     if (runningFunctionalTestsInline || runningFunctionalTestsAgainstWar) {
         stopServer()
     }
-    
+
     functionalBaseUrl = null
     System.setProperty(grailsSettings.FUNCTIONAL_BASE_URL_PROPERTY, '')
 }

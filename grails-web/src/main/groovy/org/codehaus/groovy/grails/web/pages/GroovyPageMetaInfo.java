@@ -34,9 +34,12 @@ import org.apache.commons.logging.LogFactory;
 import org.codehaus.groovy.grails.commons.CodecArtefactHandler;
 import org.codehaus.groovy.grails.commons.GrailsApplication;
 import org.codehaus.groovy.grails.commons.GrailsClass;
+import org.codehaus.groovy.grails.plugins.GrailsPlugin;
+import org.codehaus.groovy.grails.plugins.GrailsPluginManager;
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware;
 import org.codehaus.groovy.grails.web.pages.exceptions.GroovyPagesException;
 import org.codehaus.groovy.grails.web.pages.ext.jsp.TagLibraryResolver;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.ReflectionUtils;
@@ -74,6 +77,9 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
     public static final long LASTMODIFIED_CHECK_INTERVAL =  Long.getLong("grails.gsp.reload.interval", 5000).longValue();
     private static final long LASTMODIFIED_CHECK_GRANULARITY =  Long.getLong("grails.gsp.reload.granularity", 2000).longValue();
     private GrailsApplication grailsApplication;
+    
+	private String pluginPath;
+	private GrailsPlugin pagePlugin;
 
     public GroovyPageMetaInfo() {
         latestLastModifiedCheck=System.currentTimeMillis();
@@ -87,7 +93,6 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
         jspTags = (Map)ReflectionUtils.getField(ReflectionUtils.findField(pageClass, GroovyPageParser.CONSTANT_NAME_JSP_TAGS), null);
         lastModified = (Long)ReflectionUtils.getField(ReflectionUtils.findField(pageClass, GroovyPageParser.CONSTANT_NAME_LAST_MODIFIED), null);
         codecName = (String)ReflectionUtils.getField(ReflectionUtils.findField(pageClass, GroovyPageParser.CONSTANT_NAME_DEFAULT_CODEC), null);
-        initCodec();
 
         try {
             readHtmlData();
@@ -98,7 +103,7 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
     }
 
     @SuppressWarnings("rawtypes")
-    public void initCodec() {
+    public void initialize() {
         if (codecName == null) {
             Map config = grailsApplication != null ? grailsApplication.getFlatConfig() : null;
             if (config != null) {
@@ -126,7 +131,21 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
         if (codecGrailsClass!=null) {
             codecClass = codecGrailsClass.getClazz();
         }
+        
+        initializePluginPath();
     }
+
+	private void initializePluginPath() {
+		if (grailsApplication != null && pageClass != null) {
+            final ApplicationContext applicationContext = grailsApplication.getMainContext();
+            if (applicationContext!=null && applicationContext.containsBean(GrailsPluginManager.BEAN_NAME)) {
+            	GrailsPluginManager pluginManager = applicationContext.getBean(GrailsPluginManager.BEAN_NAME, GrailsPluginManager.class);
+            	pluginPath = pluginManager.getPluginPathForClass(pageClass);
+            	if(pluginPath==null) pluginPath="";
+            	pagePlugin = pluginManager.getPluginForClass(pageClass);
+            }
+        }
+	}
 
     /**
      * Reads the static html parts from a file stored in a separate file in the same package as the precompiled GSP class
@@ -141,7 +160,7 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
             input = new DataInputStream(pageClass.getResourceAsStream(dataResourceName));
             int arrayLen = input.readInt();
             htmlParts = new String[arrayLen];
-            for(int i = 0; i < arrayLen; i++) {
+            for (int i = 0; i < arrayLen; i++) {
                 htmlParts[i] = input.readUTF();
             }
         }
@@ -211,6 +230,7 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
 
     public void setPageClass(Class<?> pageClass) {
         this.pageClass = pageClass;
+        initializePluginPath();
     }
 
     public long getLastModified() {
@@ -387,7 +407,19 @@ class GroovyPageMetaInfo implements GrailsApplicationAware{
         return precompiledMode;
     }
 
+    public GrailsApplication getGrailsApplication() {
+		return grailsApplication;
+	}
+
     public void setGrailsApplication(GrailsApplication grailsApplication) {
         this.grailsApplication = grailsApplication;
     }
+    
+    public String getPluginPath() {
+		return pluginPath;
+	}
+
+	public GrailsPlugin getPagePlugin() {
+		return pagePlugin;
+	}
 }

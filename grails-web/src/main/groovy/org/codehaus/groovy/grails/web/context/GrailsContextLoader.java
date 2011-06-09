@@ -77,7 +77,6 @@ public class GrailsContextLoader extends ContextLoader {
             GrailsConfigUtils.executeGrailsBootstraps(application, ctx, servletContext);
         }
         catch (Throwable e) {
-            GrailsUtil.deepSanitize(e);
             if (Environment.isDevelopmentMode()) {
                 LOG.error("Error executing bootstraps: " + e.getMessage(), e);
                 // bail out early in order to show appropriate error
@@ -112,7 +111,7 @@ public class GrailsContextLoader extends ContextLoader {
 
         WebApplicationContext ctx = WebApplicationContextUtils.getWebApplicationContext(servletContext);
         GrailsPluginManager pluginManager = null;
-        if(ctx.containsBean(GrailsPluginManager.BEAN_NAME)) {
+        if (ctx.containsBean(GrailsPluginManager.BEAN_NAME)) {
             pluginManager = ctx.getBean(GrailsPluginManager.BEAN_NAME, GrailsPluginManager.class);
         }
 

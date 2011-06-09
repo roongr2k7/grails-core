@@ -15,8 +15,6 @@
  */
 package org.codehaus.groovy.grails.plugins.web.mapping;
 
-
-import grails.util.Environment
 import grails.util.GrailsUtil
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.commons.UrlMappingsArtefactHandler
@@ -31,7 +29,7 @@ import org.springframework.aop.target.HotSwappableTargetSource
 import org.springframework.core.io.Resource
 import org.springframework.web.context.WebApplicationContext
 
-/**
+ /**
  * Handles the configuration of URL mappings for Grails.
  *
  * @author Graeme Rocher
@@ -47,11 +45,8 @@ class UrlMappingsGrailsPlugin {
     def doWithSpring = {
         def serverURL = null
         final configuredServerURL = application.config?.grails?.serverURL
-        if(configuredServerURL) {
+        if (configuredServerURL) {
             serverURL = configuredServerURL
-        }
-        else if(Environment.current != Environment.PRODUCTION) {
-            serverURL = "http://localhost:8080"
         }
         grailsLinkGenerator(CachingLinkGenerator, serverURL)
         urlMappingsTargetSource(org.springframework.aop.target.HotSwappableTargetSource, createUrlMappingsHolder(application, springConfig.getUnrefreshedApplicationContext(), manager)) { bean ->

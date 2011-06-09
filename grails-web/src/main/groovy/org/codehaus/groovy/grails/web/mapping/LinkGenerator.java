@@ -16,37 +16,51 @@
 
 package org.codehaus.groovy.grails.web.mapping;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Generates links for a Grails application based on URL mapping rules and/or base context settings
+ * Generates links for a Grails application based on URL mapping rules and/or base context settings.
  *
  * @author Graeme Rocher
  * @since 1.4
  */
 public interface LinkGenerator {
 
-    Set<String> LINK_ATTRIBUTES = new HashSet<String>() {{
-       add("controller");
-       add("action");
-       add("uri");
-       add("url");
-       add("base");
-       add("absolute");
-       add("id");
-       add("fragment");
-       add("params");
-       add("mapping");
-       add("event");
-       add("elementId");
-    }};
+    String ATTRIBUTE_CONTROLLER = "controller";
+    String ATTRIBUTE_ACTION = "action";
+    String ATTRIBUTE_URI = "uri";
+    String ATTRIBUTE_CONTEXT_PATH = "contextPath";
+    String ATTRIBUTE_URL = "url";
+    String ATTRIBUTE_BASE = "base";
+    String ATTRIBUTE_ABSOLUTE = "absolute";
+    String ATTRIBUTE_ID = "id";
+    String ATTRIBUTE_FRAGMENT = "fragment";
+    String ATTRIBUTE_PARAMS = "params";
+    String ATTRIBUTE_MAPPING = "mapping";
+    String ATTRIBUTE_EVENT = "event";
+    String ATTRIBUTE_ELEMENT_ID = "elementId";
+
+    Set<String> LINK_ATTRIBUTES = new HashSet<String>(Arrays.asList(
+       ATTRIBUTE_CONTROLLER,
+       ATTRIBUTE_ACTION,
+       ATTRIBUTE_URI,
+       ATTRIBUTE_URL,
+       ATTRIBUTE_BASE,
+       ATTRIBUTE_ABSOLUTE,
+       ATTRIBUTE_ID,
+       ATTRIBUTE_FRAGMENT,
+       ATTRIBUTE_PARAMS,
+       ATTRIBUTE_MAPPING,
+       ATTRIBUTE_EVENT,
+       ATTRIBUTE_ELEMENT_ID));
+
     /**
      * Generates a link to a static resource for the given named parameters.
      *
      * Possible named parameters include:
-     *
      *
      * <ul>
      *    <li>base - The base path of the URL, typically an absolute server path</li>
@@ -57,12 +71,10 @@ public interface LinkGenerator {
      *    <li>absolute - Whether the link should be absolute or not</li>
      * </ul>
      *
-     *
      * @param params The named parameters
      * @return The link to the static resource
      */
-    public String resource(Map params);
-
+    String resource(@SuppressWarnings("rawtypes") Map params);
 
     /**
      * Generates a link to a controller, action or URI for the given named parameters.
@@ -76,6 +88,7 @@ public interface LinkGenerator {
      *    <li>url -  A map containing the action,controller,id etc.</li>
      *    <li>base -  Sets the prefix to be added to the link target address, typically an absolute server URL. This overrides the behaviour of the absolute property, if both are specified.</li>
      *    <li>absolute -  If set to "true" will prefix the link target address with the value of the grails.serverURL property from Config, or http://localhost:&lt;port&gt; if no value in Config and not running in production.</li>
+     *    <li>contextPath - The context path to link to, defaults to the servlet context path</li>
      *    <li>id -  The id to use in the link</li>
      *    <li>fragment -  The link fragment (often called anchor tag) to use</li>
      *    <li>params -  A map containing URL query parameters</li>
@@ -85,9 +98,7 @@ public interface LinkGenerator {
      * @param params The named parameters
      * @return The generator link
      */
-    public String link(Map params);
-
-
+    String link(@SuppressWarnings("rawtypes") Map params);
 
     /**
      * Generates a link to a controller, action or URI for the given named parameters.
@@ -111,21 +122,19 @@ public interface LinkGenerator {
      * @param encoding The character encoding to use
      * @return The generator link
      */
-    public String link(Map params, String encoding);
-
-
+    String link(@SuppressWarnings("rawtypes") Map params, String encoding);
 
     /**
-     * Obtains the context path from which this link generator is operating
+     * Obtains the context path from which this link generator is operating.
      *
      * @return The base context path
      */
-    public String getContextPath();
+    String getContextPath();
 
     /**
-     * The base URL of the server used for creating absolute links
+     * The base URL of the server used for creating absolute links.
      *
      * @return The base URL of the server
      */
-    public String getServerBaseURL();
+    String getServerBaseURL();
 }

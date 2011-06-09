@@ -4,11 +4,14 @@ import groovy.lang.ExpandoMetaClass;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyObject;
 import junit.framework.TestCase;
+
+import org.codehaus.groovy.grails.commons.ApplicationHolder;
 import org.codehaus.groovy.grails.commons.ConfigurationHolder;
 import org.codehaus.groovy.grails.commons.DefaultGrailsApplication;
 import org.codehaus.groovy.grails.commons.GrailsApplication;
 import org.codehaus.groovy.grails.commons.GrailsDomainClass;
 import org.codehaus.groovy.grails.plugins.DefaultGrailsPluginManager;
+import org.codehaus.groovy.grails.plugins.PluginManagerHolder;
 import org.codehaus.groovy.grails.support.MockApplicationContext;
 import org.codehaus.groovy.grails.validation.GrailsDomainClassValidator;
 import org.codehaus.groovy.grails.web.errors.GrailsExceptionResolver;
@@ -29,6 +32,8 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
     protected void setUp() throws Exception {
         ExpandoMetaClass.enableGlobally();
         ConfigurationHolder.setConfig(null);
+        ApplicationHolder.setApplication(null);
+        PluginManagerHolder.setPluginManager(null);
 
         super.setUp();
     }
@@ -52,7 +57,7 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
 
         Class<?> c = gcl.parseClass("class TestController { def list = {} }");
 
-        GrailsApplication app = new DefaultGrailsApplication(new Class[]{dc,c}, gcl );
+        GrailsApplication app = new DefaultGrailsApplication(new Class[]{dc,c}, gcl);
 
         MockApplicationContext parent = new MockApplicationContext();
         parent.registerMockBean(GrailsApplication.APPLICATION_ID, app);
@@ -69,7 +74,7 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
 
         // test class editor setup
         assertNotNull(ctx);
-        assertTrue(ctx.getBean(GrailsRuntimeConfigurator.CLASS_LOADER_BEAN) instanceof GroovyClassLoader );
+        assertTrue(ctx.getBean(GrailsRuntimeConfigurator.CLASS_LOADER_BEAN) instanceof GroovyClassLoader);
 
         // test exception resolver
         GrailsExceptionResolver er = getBean(ctx, GrailsRuntimeConfigurator.EXCEPTION_HANDLER_BEAN);
@@ -107,7 +112,7 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
 
         Class<?> c = gcl.parseClass("class TestController { def scaffold = Test }");
 
-        GrailsApplication app = new DefaultGrailsApplication(new Class[]{dc,c}, gcl );
+        GrailsApplication app = new DefaultGrailsApplication(new Class[]{dc,c}, gcl);
         MockApplicationContext parent = new MockApplicationContext();
         parent.registerMockBean(GrailsApplication.APPLICATION_ID, app);
 
@@ -120,7 +125,7 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
         GroovyClassLoader gcl = new GroovyClassLoader();
         Class<?> dc = gcl.parseClass("class Test { Long id; Long version; }");
 
-        GrailsApplication app = new DefaultGrailsApplication(new Class[0], gcl );
+        GrailsApplication app = new DefaultGrailsApplication(new Class[0], gcl);
         MockApplicationContext parent = new MockApplicationContext();
         parent.registerMockBean(GrailsApplication.APPLICATION_ID, app);
 
@@ -145,16 +150,18 @@ public class GrailsRuntimeConfiguratorTests extends TestCase {
     public void testApplicationIsAvailableInResources() throws Exception {
         GroovyClassLoader gcl = new GroovyClassLoader();
         gcl.parseClass("class Holder { def value }");
-        /*Class<?> resourcesClass =*/ gcl.parseClass("beans = { b(Holder, value: application) }", "resources.groovy");
+        /*Class<?> resourcesClass =*/ gcl.parseClass("beans = { b(Holder, value: application); b2(Holder, value: grailsApplication) }", "resources.groovy");
 
         GrailsApplication app = new DefaultGrailsApplication(new Class[]{}, gcl);
         RuntimeSpringConfiguration springConfig = new DefaultRuntimeSpringConfiguration();
         GrailsRuntimeConfigurator.loadExternalSpringConfig(springConfig, app);
 
-        assertTrue(springConfig.containsBean("b"));
-        BeanConfiguration beanConfig = springConfig.getBeanConfig("b");
-        assertTrue(beanConfig.hasProperty("value"));
-        assertEquals(app, beanConfig.getPropertyValue("value"));
+        for (String bean : new String[] { "b", "b2" }) {
+            assertTrue(springConfig.containsBean(bean));
+            BeanConfiguration beanConfig = springConfig.getBeanConfig(bean);
+            assertTrue(beanConfig.hasProperty("value"));
+            assertEquals(app, beanConfig.getPropertyValue("value"));
+        }
     }
 
     @SuppressWarnings("unchecked")

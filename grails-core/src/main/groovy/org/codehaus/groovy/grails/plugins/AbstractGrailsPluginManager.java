@@ -19,6 +19,8 @@ import grails.util.BuildScope;
 import grails.util.Environment;
 import grails.util.GrailsNameUtils;
 import groovy.lang.ExpandoMetaClass;
+import groovy.lang.GroovySystem;
+import groovy.lang.MetaClassRegistry;
 import groovy.util.ConfigObject;
 import groovy.util.ConfigSlurper;
 import org.codehaus.groovy.grails.commons.ArtefactHandler;
@@ -309,7 +311,7 @@ public abstract class AbstractGrailsPluginManager implements GrailsPluginManager
     }
 
     public GrailsPlugin getPluginForInstance(Object instance) {
-        if(instance != null) {
+        if (instance != null) {
             return getPluginForClass(instance.getClass());
         }
         return null;
@@ -324,7 +326,6 @@ public abstract class AbstractGrailsPluginManager implements GrailsPluginManager
             }
         }
         return null;
-
     }
 
     public void informPluginsOfConfigChange() {
@@ -335,18 +336,17 @@ public abstract class AbstractGrailsPluginManager implements GrailsPluginManager
 
     public void informOfFileChange(File file) {
         String className = GrailsResourceUtils.getClassName(file.getAbsolutePath());
-        Class cls = null;
+        Class<?> cls = null;
 
-        if(className != null) {
+        if (className != null) {
             cls = loadApplicationClass(className);
         }
 
         informOfClassChange(file, cls);
-
     }
 
-    public void informOfClassChange(File file, Class cls) {
-        if(cls != null && cls.getName().equals(CONFIG_FILE)) {
+    public void informOfClassChange(File file, @SuppressWarnings("rawtypes") Class cls) {
+        if (cls != null && cls.getName().equals(CONFIG_FILE)) {
             ConfigSlurper configSlurper = ConfigurationHelper.getConfigSlurper(Environment.getCurrent().getName(), application);
             ConfigObject c;
             try {
@@ -359,9 +359,17 @@ public abstract class AbstractGrailsPluginManager implements GrailsPluginManager
             }
         }
         else {
+
+            MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
+            registry.removeMetaClass(cls);
+            ExpandoMetaClass newMc = new ExpandoMetaClass(cls, true, true);
+            newMc.initialize();
+            registry.setMetaClass(cls, newMc);
+
+
             for (GrailsPlugin grailsPlugin : pluginList) {
-                if(grailsPlugin.hasInterestInChange(file.getAbsolutePath())) {
-                    if(cls != null) {
+                if (grailsPlugin.hasInterestInChange(file.getAbsolutePath())) {
+                    if (cls != null) {
                         grailsPlugin.notifyOfEvent(GrailsPlugin.EVENT_ON_CHANGE, cls);
                     }
                     else {
@@ -372,8 +380,8 @@ public abstract class AbstractGrailsPluginManager implements GrailsPluginManager
         }
     }
 
-    private Class loadApplicationClass(String className) {
-        Class cls = null;
+    private Class<?> loadApplicationClass(String className) {
+        Class<?> cls = null;
         try {
             cls = application.getClassLoader().loadClass(className);
         } catch (ClassNotFoundException e) {

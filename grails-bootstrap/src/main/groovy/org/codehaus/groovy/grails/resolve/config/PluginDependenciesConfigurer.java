@@ -23,15 +23,30 @@ class PluginDependenciesConfigurer extends AbstractDependenciesConfigurer {
         super(context);
     }
 
+    @Override
     protected void addDependency(String scope, EnhancedDefaultDependencyDescriptor descriptor) {
+        if (context.pluginName != null) {
+            descriptor.setTransitivelyIncluded(true);
+        }
+
         getDependencyManager().registerPluginDependency(scope, descriptor);
     }
 
+    @Override
+    protected void handleExport(EnhancedDefaultDependencyDescriptor descriptor, Boolean export) {
+        if (export != null) {
+            descriptor.setExported(export);
+        }
+        else {
+            descriptor.setExport(context.exported);
+        }
+    }
+
+    @Override
     protected void preprocessDependencyProperties(Map<Object, Object> dependency) {
         Object groupValue = dependency.get("group");
         if (groupValue == null || groupValue.toString().equals("")) {
             dependency.put("group", "org.grails.plugins");
         }
     }
-    
 }

@@ -1,40 +1,42 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
-repositories {
-    mavenRepo urls:'http://spring-roo-repository.springsource.org.s3.amazonaws.com/release'
-}
 dependencies {
-    compile( "org.springframework.uaa:org.springframework.uaa.client:1.0.1.RELEASE" ) {
-        transitive = false
+    compile "org.springframework:spring-core:${springVersion}",
+            "org.springframework:spring-beans:${springVersion}",
+            "org.springframework:spring-test:${springVersion}",
+            "org.springframework:spring-context:${springVersion}",
+            "org.springframework:spring-context-support:${springVersion}"
+
+
+    compile("org.springframework.uaa:org.springframework.uaa.client:1.0.1.RELEASE") {
+        // Explicitly exclude OSGIified dependencies - GRAILS-7525
+        // Have to use excludes instead of transitive = false - GRADLE-1574
+        ["protobuf-java-lite", "json-simple", "bcpg-jdk15", "bcprov-jdk15"].each { dep ->
+            exclude group: "org.springframework.roo.wrapping", module: "org.springframework.roo.wrapping." + dep
+        }
     }
 
-    // These 3 are required by UAA but not Grails
+    // These 3 are required by UAA but not Grails (non OSGI version of excludes above)
     compile 'com.google.protobuf:protobuf-java:2.3.0',
             'com.googlecode.json-simple:json-simple:1.1',
             "org.bouncycastle:bcpg-jdk15:1.45"
 
-
-    compile( 'org.codehaus.gpars:gpars:0.9' ) {
-        exclude module:'netty'
-    }
-
+    compile "commons-lang:commons-lang:$commonsLangVersion"
+    compile 'commons-cli:commons-cli:1.2'
 
     // Ant
+    compile 'org.fusesource.jansi:jansi:1.2.1',
+            'jline:jline:0.9.94'
+
     compile "org.apache.ant:ant:${antVersion}",
             "org.apache.ant:ant-launcher:${antVersion}",
             "org.apache.ant:ant-junit:${antVersion}",
             "org.apache.ant:ant-trax:${antTraxVersion}",
             "org.apache.ivy:ivy:${ivyVersion}",
             "org.codehaus.gant:gant_groovy1.8:${gantVersion}"
-
-    runtime 'org.coconut.forkjoin:jsr166y:070108', // Dependency for parallel execution in Gpars
-            'org.fusesource.jansi:jansi:1.2.1',
-            'jline:jline:0.9.94'
-
-
 }
 
-processResources{
+processResources {
    inputs.property "version", version
    filter(ReplaceTokens, tokens:[version:version])
 }

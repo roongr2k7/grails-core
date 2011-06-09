@@ -36,8 +36,6 @@ import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException;
  */
 public abstract class GroovySyntaxTag implements GrailsTag {
 
-    private static final String METHOD_EACH_WITH_INDEX = "eachWithIndex";
-    private static final String METHOD_EACH = "each";
     private static final String ERROR_NO_VAR_WITH_STATUS = "When using <g:each> with a [status] attribute, you must also define a [var]. eg. <g:each var=\"myVar\">";
     protected static final String ATTRIBUTE_IN = "in";
     protected static final String ATTRIBUTE_VAR = "var";
@@ -135,31 +133,35 @@ public abstract class GroovySyntaxTag implements GrailsTag {
             throw new GrailsTagException(ERROR_NO_VAR_WITH_STATUS);
         }
 
-        String methodName = hasStatus ? METHOD_EACH_WITH_INDEX : METHOD_EACH;
-
         if (var.equals(status) && (hasStatus)) {
             throw new GrailsTagException("Attribute [" + ATTRIBUTE_VAR +
                     "] cannot have the same value as attribute [" + ATTRIBUTES_STATUS + "]");
         }
 
-        out.print(parser != null ? parser.getExpressionText(in) : in);  // object
-        out.print('.'); // dot de-reference
-        out.print(methodName); // method name
-        out.print(" { "); // start closure
-
-        if (hasVar || hasStatus) {
-            out.print(hasVar ? var : "it"); // var name
-        }
-        // if eachWithIndex add status
         if (hasStatus) {
-            out.print(",");
-            out.print(status);
+            out.println("FOR:{");
+            out.println("int "+ status +" = 0" );
         }
+        out.print("for( " + (hasVar ? var : "it"));
+        out.print(" in "); // dot de-reference
+        out.print(parser != null ? parser.getExpressionText(in, false) : extractAttributeValue(in));  // object
+        out.print(" )"); // dot de-reference
+        out.print(" {"); // start closure
 
-        if (hasVar || hasStatus) {
-            out.print(" ->"); // start closure body
-        }
+
         out.println();
+    }
+
+    protected void endEachMethod(){
+        String status = attributes.get(ATTRIBUTES_STATUS);
+        status = extractAttributeValue(status);
+        boolean hasStatus = !StringUtils.isBlank(status);
+
+        if (hasStatus) {
+            out.println(status +"++" );
+            out.println("}");
+        }
+        out.println("}");
     }
 
     private String extractAttributeValue(String attr) {
@@ -168,6 +170,9 @@ public abstract class GroovySyntaxTag implements GrailsTag {
         }
         if (attr.startsWith("\"") && attr.endsWith("\"") && attr.length() > 1) {
             attr = attr.substring(1,attr.length()-1);
+        }
+         if (attr.endsWith("?") && attr.length() > 1) {
+            attr = attr.substring(0,attr.length()-1);
         }
         return attr;
     }

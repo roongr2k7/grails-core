@@ -7,7 +7,7 @@ import grails.test.mixin.web.ControllerUnitTestMixin
 import org.codehaus.groovy.grails.plugins.testing.GrailsMockMultipartFile
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.mime.MimeUtility
-import org.codehaus.groovy.grails.web.servlet.mvc.SynchronizerToken
+import org.codehaus.groovy.grails.web.servlet.mvc.SynchronizerTokensHolder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.MessageSource
 import org.springframework.web.multipart.MultipartFile
@@ -28,7 +28,6 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
     protected getMockController() {
         mockController(AnotherController)
     }
-
 
     void testSimpleControllerRedirect() {
 
@@ -64,7 +63,6 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
 
         assert '{"book":"Great"}' == controller.response.contentAsString
         assert "Great" == controller.response.json.book
-
     }
 
     void testRenderAsJson() {
@@ -75,7 +73,6 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
 
         assert '{"foo":"bar"}' == controller.response.contentAsString
         assert "bar" == controller.response.json.foo
-
     }
 
     void testRenderState() {
@@ -131,21 +128,21 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
 
     void testWithFormTokenSynchronization() {
 
-
         def controller = getMockController()
         controller.renderWithForm()
 
         assert "Bad" == response.contentAsString
 
-        def token = SynchronizerToken.store(session)
-        params[SynchronizerToken.KEY] = token.currentToken.toString()
+        def holder = SynchronizerTokensHolder.store(session)
+        def token = holder.generateToken('/test')
+        params[SynchronizerTokensHolder.TOKEN_URI] = '/test'
+        params[SynchronizerTokensHolder.TOKEN_KEY] = token
 
         response.reset()
 
         controller.renderWithForm()
 
         assert "Good" == response.contentAsString
-
     }
 
     void testFileUpload() {
@@ -165,7 +162,6 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
         controller.renderTemplate()
 
         assert response.contentAsString == "Hello 10"
-
     }
 
     void testRenderBasicTemplateWithTags() {
@@ -224,17 +220,15 @@ class AstEnhancedControllerUnitTestMixinTests extends GroovyTestCase{
         controller.handleCommand(cmd)
 
         assert response.contentAsString == 'Good'
-
     }
-
-
 }
+
 @Artefact("Controller")
 class AnotherController {
 
     def handleCommand = { TestCommand test ->
 
-         if(test.hasErrors()) {
+         if (test.hasErrors()) {
              render "Bad"
          }
          else {
@@ -286,7 +280,7 @@ class AnotherController {
     }
 
     def renderAsJson = {
-        render( [foo:"bar"] as JSON )
+        render([foo:"bar"] as JSON)
     }
 
     def renderWithFormat = {
@@ -302,14 +296,13 @@ class AnotherController {
             println params.foo
             println request.bar
             requestInfo {
-                for(p in params) {
+                for (p in params) {
                     parameter(name:p.key, value:p.value)
                 }
                 request.each {
                     attribute(name:it.key, value:it.value)
                 }
             }
-
         }
     }
 

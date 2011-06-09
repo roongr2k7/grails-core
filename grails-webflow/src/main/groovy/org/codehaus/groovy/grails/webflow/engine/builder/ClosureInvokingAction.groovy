@@ -14,24 +14,22 @@
  */
 package org.codehaus.groovy.grails.webflow.engine.builder
 
+import org.springframework.web.context.request.RequestContextHolder as RCH
+
+import grails.util.GrailsNameUtils
 import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
-import org.codehaus.groovy.runtime.InvokerHelper
+import org.codehaus.groovy.grails.commons.GrailsDomainConfigurationUtil
+import org.codehaus.groovy.grails.web.binding.GrailsDataBinder
+import org.codehaus.groovy.grails.web.servlet.GrailsApplicationAttributes
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory
+import org.springframework.validation.Errors
 import org.springframework.webflow.action.AbstractAction
 import org.springframework.webflow.core.collection.LocalAttributeMap
 import org.springframework.webflow.execution.Event
 import org.springframework.webflow.execution.RequestContext
-import org.codehaus.groovy.grails.web.servlet.GrailsApplicationAttributes
-import org.codehaus.groovy.grails.web.binding.*
-import org.springframework.web.context.request.RequestContextHolder as RCH
-import org.springframework.validation.Errors
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory
 
-import grails.util.GrailsUtil
-import grails.util.GrailsNameUtils
-import org.codehaus.groovy.grails.commons.GrailsDomainConfigurationUtil
-
-/**
+ /**
  * Invokes a closure as a Webflow action placing the returned model within the flow scope.
  *
  * @author Graeme Rocher
@@ -72,7 +70,7 @@ class ClosureInvokingAction extends AbstractAction {
                     if (constrainedProperties) {
                         for (prop in constrainedProperties.values()) {
                             prop.messageSource = applicationContext.getBean("messageSource")
-                            prop.validate(delegate, delegate.getProperty( prop.getPropertyName() ),localErrors)
+                            prop.validate(delegate, delegate.getProperty(prop.getPropertyName()), localErrors)
                         }
                     }
                     !localErrors.hasErrors()
@@ -138,7 +136,6 @@ class ClosureInvokingAction extends AbstractAction {
             return event
         }
         catch (Throwable e) {
-            GrailsUtil.deepSanitize(e)
             LOG.error("Exception occured invoking flow action: ${e.message}", e)
             throw e
         }
@@ -150,7 +147,7 @@ class ClosureInvokingAction extends AbstractAction {
                 if (entry.value instanceof GroovyObject) {
                     def errors = entry.value.errors
                     if (errors?.hasErrors()) {
-                        context.flashScope.put("${GrailsApplicationAttributes.ERRORS}_${entry.key}", errors )
+                        context.flashScope.put("${GrailsApplicationAttributes.ERRORS}_${entry.key}", errors)
                     }
                 }
             }

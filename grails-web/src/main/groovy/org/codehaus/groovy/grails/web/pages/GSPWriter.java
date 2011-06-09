@@ -45,7 +45,7 @@ public class GSPWriter extends PrintWriter {
     }
 
     public void printlnToResponse(String s) {
-        printlnToResponse(GroovyPage.OUT, s);
+        printlnToResponse(GroovyPage.OUT_STATEMENT, s);
     }
 
     public void printlnToResponse(String outVarName, String s) {
@@ -96,7 +96,7 @@ public class GSPWriter extends PrintWriter {
     }
 
     public int getCurrentLineNumber() {
-        return this.lineNumber;
+        return lineNumber;
     }
 
     public int[] getLineNumbers() {

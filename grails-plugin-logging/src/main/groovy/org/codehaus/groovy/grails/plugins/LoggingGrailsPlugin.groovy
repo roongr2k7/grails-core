@@ -21,6 +21,7 @@ import grails.util.GrailsUtil
 import org.apache.commons.logging.LogFactory
 import org.apache.log4j.LogManager
 import org.codehaus.groovy.grails.plugins.logging.Log4jConfig
+import org.slf4j.bridge.SLF4JBridgeHandler
 
 /**
  * Provides a lazy initialized commons logging log property for all classes.
@@ -41,15 +42,27 @@ class LoggingGrailsPlugin {
         if (usebridge) {
             def juLogMgr = application.classLoader.loadClass("java.util.logging.LogManager").logManager
             juLogMgr.readConfiguration(new ByteArrayInputStream(".level=INFO".bytes))
-            org.slf4j.bridge.SLF4JBridgeHandler.install()
+            SLF4JBridgeHandler.install()
         }
     }
 
     def onConfigChange = {event ->
         def log4jConfig = event.source.log4j
-        if (log4jConfig instanceof Closure) {
+        if (log4jConfig instanceof Closure || log4jConfig instanceof Collection || log4jConfig instanceof Map) {
             LogManager.resetConfiguration()
             new Log4jConfig().configure(log4jConfig)
+        }
+    }
+
+    def doWithWebDescriptor = { webXml ->
+
+        def mappingElement = webXml.'listener'
+        mappingElement = mappingElement[mappingElement.size() - 1]
+
+        mappingElement + {
+            'listener' {
+                'listener-class'(org.codehaus.groovy.grails.web.util.Log4jConfigListener.name)
+            }
         }
     }
 

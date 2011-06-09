@@ -1,5 +1,7 @@
 package org.codehaus.groovy.grails.web.taglib
 
+import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
+
 class GroovyEachTagTests extends GroovyTestCase {
 
     void testEachWithSafeDereference() {
@@ -16,7 +18,7 @@ class GroovyEachTagTests extends GroovyTestCase {
 
         tag.doStartTag()
 
-        assertEquals("test?.each { "+System.getProperty("line.separator"), sw.toString())
+       assertEquals("for( it in test ) {"+ System.getProperty("line.separator"),sw.toString())
     }
 
     void testSimpleEach() {
@@ -32,7 +34,7 @@ class GroovyEachTagTests extends GroovyTestCase {
 
         tag.doStartTag()
 
-        assertEquals("test.each { "+ System.getProperty("line.separator"),sw.toString())
+        assertEquals("for( it in test ) {"+ System.getProperty("line.separator"),sw.toString())
     }
 
     void testEachWithVar() {
@@ -44,7 +46,7 @@ class GroovyEachTagTests extends GroovyTestCase {
 
         tag.doStartTag()
 
-        assertEquals("test.each { i ->"+ System.getProperty("line.separator"),sw.toString())
+        assertEquals("for( i in test ) {"+ System.getProperty("line.separator"),sw.toString())
     }
 
     void testEachWithStatusOnly() {
@@ -71,6 +73,6 @@ class GroovyEachTagTests extends GroovyTestCase {
         tag.setAttributes('"var"':'j')
         tag.doStartTag()
 
-        assert sw.toString() == "test.eachWithIndex { j,i ->"+System.getProperty("line.separator")
+        assert sw.toString() == "FOR:{\nint i = 0\nfor( j in test ) {"+System.getProperty("line.separator")
     }
 }

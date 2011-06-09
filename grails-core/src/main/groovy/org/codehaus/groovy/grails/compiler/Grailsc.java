@@ -18,6 +18,7 @@ package org.codehaus.groovy.grails.compiler;
 import org.codehaus.groovy.ant.Groovyc;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.Phases;
+import grails.build.logging.GrailsConsole;
 import org.codehaus.groovy.grails.compiler.injection.GrailsAwareInjectionOperation;
 
 import java.io.File;
@@ -45,7 +46,7 @@ public class Grailsc extends Groovyc {
        for (String f : files) {
            File sf = new File(srcPath, f);
            File df = null;
-           if (f.endsWith(".groovy") ) {
+           if (f.endsWith(".groovy")) {
                df = new File(destPath, f.substring(0, f.length()-7) + ".class");
                int i = f.lastIndexOf('/');
                if (!df.exists() && i > -1) {
@@ -74,6 +75,7 @@ public class Grailsc extends Groovyc {
     @Override
     protected void compile() {
         if (compileList.length > 0) {
+           GrailsConsole.getInstance().updateStatus("Compiling "+compileList.length+" source files");
            super.compile();
         }
     }

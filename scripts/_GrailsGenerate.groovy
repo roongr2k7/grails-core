@@ -39,7 +39,7 @@ target(generateForOne: "Generates controllers and views for only one domain clas
     def domainClass = grailsApp.getDomainClass(name)
 
     if (!domainClass) {
-        println "Domain class not found in grails-app/domain, trying hibernate mapped classes..."
+        console.updateStatus "Domain class not found in grails-app/domain, trying hibernate mapped classes..."
         bootstrap()
         domainClass = grailsApp.getDomainClass(name)
     }
@@ -50,7 +50,7 @@ target(generateForOne: "Generates controllers and views for only one domain clas
     }
     else {
         event("StatusFinal", ["No domain class found for name ${name}. Please try again and enter a valid domain class name"])
-		exit(1)
+        exit(1)
     }
 }
 
@@ -86,7 +86,7 @@ def generateForDomainClass(domainClass) {
     if (generateController) {
         event("StatusUpdate", ["Generating controller for domain class ${domainClass.fullName}"])
         templateGenerator.generateController(domainClass, basedir)
-		templateGenerator.generateTest(domainClass, "${basedir}/test/unit")
+        templateGenerator.generateTest(domainClass, "${basedir}/test/unit")
         event("GenerateControllerEnd", [domainClass.fullName])
     }
 }

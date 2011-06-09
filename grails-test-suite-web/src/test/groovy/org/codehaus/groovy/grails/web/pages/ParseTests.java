@@ -51,7 +51,7 @@ public class ParseTests extends TestCase {
     protected String makeImports() {
         StringBuffer result = new StringBuffer();
         for (int i = 0; i < GroovyPageParser.DEFAULT_IMPORTS.length; i++) {
-            result.append( "import " + GroovyPageParser.DEFAULT_IMPORTS[i]+"\n");
+            result.append("import " + GroovyPageParser.DEFAULT_IMPORTS[i]+"\n");
         }
         return result.toString();
     }
@@ -64,13 +64,9 @@ public class ParseTests extends TestCase {
             "class myTest1 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"myTest1\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
             "printHtmlPart(0)\n" +
             "}\n" + GSP_FOOTER;
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(result.generatedGsp));
@@ -84,15 +80,11 @@ public class ParseTests extends TestCase {
             "class myTest2 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"myTest2\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
 
-            "invokeTag('message','g',1,['code':evaluate('\"[\"', 1, it) { return \"[\" }] as GroovyPageAttributes,null)\n" +
+            "invokeTag('message','g',1,['code':evaluate('\"[\"', 1, it) { return \"[\" }] as GroovyPageAttributes,-1)\n" +
             "}\n" + GSP_FOOTER;
 
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(output));
@@ -103,7 +95,7 @@ public class ParseTests extends TestCase {
             parseCode("myTest3", "<g:message value=\"${boom\">");
         }
         catch (GrailsTagException e) {
-            assertEquals("Unexpected end of file encountered parsing Tag [message] for myTest3. Are you missing a closing brace '}'? at myTest3:18", e.getMessage());
+            assertEquals("Unexpected end of file encountered parsing Tag [message] for myTest3. Are you missing a closing brace '}'? at myTest3:14", e.getMessage());
             return;
         }
         fail("Expected parse exception not thrown");
@@ -131,13 +123,9 @@ public class ParseTests extends TestCase {
             "class myTest4 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"myTest4\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
             "printHtmlPart(0)\n" +
             "}\n" + GSP_FOOTER;
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(output.generatedGsp));
@@ -172,14 +160,9 @@ public class ParseTests extends TestCase {
             "class myTest5 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"myTest5\" }\n" +
             "public Object run() {\n" +
-
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
             "printHtmlPart(0)\n" +
             "}\n" + GSP_FOOTER;
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(output.generatedGsp));
@@ -195,7 +178,7 @@ public class ParseTests extends TestCase {
     public String trimAndRemoveCR(String s) {
         int index;
         StringBuffer sb = new StringBuffer(s.trim());
-        while (((index = sb.toString().indexOf('\r')) != -1) || ((index = sb.toString().indexOf('\n')) != -1) ) {
+        while (((index = sb.toString().indexOf('\r')) != -1) || ((index = sb.toString().indexOf('\n')) != -1)) {
             sb.deleteCharAt(index);
         }
         return sb.toString();
@@ -226,7 +209,7 @@ public class ParseTests extends TestCase {
                  "  <tt:form />\n" +
                  "</tbody>").generatedGsp;
          System.out.println("output = " + output);
-         assertTrue( "should have call to tag with 'tt' namespace", output.indexOf("invokeTag('form','tt',2,[:],null)") > -1);
+         assertTrue("should have call to tag with 'tt' namespace", output.indexOf("invokeTag('form','tt',2,[:],-1)") > -1);
      }
 
      public void testParseWithWhitespaceNotEaten() throws Exception {
@@ -235,15 +218,11 @@ public class ParseTests extends TestCase {
             "class myTest7 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"myTest7\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
             "printHtmlPart(0)\n" +
-            "codecOut.print(evaluate('uri', 3, it) { return uri })\n" +
+            GroovyPage.CODEC_OUT_STATEMENT + ".print(evaluate('uri', 3, it) { return uri })\n" +
             "printHtmlPart(1)\n" +
             "}\n" + GSP_FOOTER;
 
@@ -267,15 +246,11 @@ public class ParseTests extends TestCase {
             "class GRAILS5598 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"GRAILS5598\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
-            "body1 = createClosureForHtmlPart(0)\n" +
-            "invokeTag('captureBody','sitemesh',1,['class':evaluate('\"${page.name} ${page.group.name.toLowerCase()}\"', 1, it) { return \"${page.name} ${page.group.name.toLowerCase()}\" }] as GroovyPageAttributes,body1)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
+            "createClosureForHtmlPart(0, 1)\n" +
+            "invokeTag('captureBody','sitemesh',1,['class':evaluate('\"${page.name} ${page.group.name.toLowerCase()}\"', 1, it) { return \"${page.name} ${page.group.name.toLowerCase()}\" }] as GroovyPageAttributes,1)\n" +
             "}\n" + GSP_FOOTER;
          assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(result.generatedGsp));
          assertEquals("text", result.htmlParts[0]);
@@ -288,12 +263,8 @@ public class ParseTests extends TestCase {
             "class SITEMESH_PREPROCESS_TEST extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"SITEMESH_PREPROCESS_TEST\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
             "printHtmlPart(0)\n" +
             "}\n" + GSP_FOOTER;
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(result.generatedGsp));
@@ -307,18 +278,14 @@ public class ParseTests extends TestCase {
             "class GRAILS5605 extends GroovyPage {\n" +
             "public String getGroovyPageFileName() { \"GRAILS5605\" }\n" +
             "public Object run() {\n" +
-            "def params = binding.params\n" +
-            "def request = binding.request\n" +
-            "def flash = binding.flash\n" +
-            "def response = binding.response\n" +
-            "def out = binding.out\n" +
-            "def codecOut = binding.codecOut\n" +
-            "registerSitemeshPreprocessMode(request)\n" +
+            "def out = getOut()\n" +
+            "def codecOut = getCodecOut()\n"+
+            "registerSitemeshPreprocessMode()\n" +
             "printHtmlPart(0)\n" +
-            "body1 = new GroovyPageTagBody(this,binding.webRequest, {\n" +
-            "invokeTag('captureMeta','sitemesh',1,['gsp_sm_xmlClosingForEmptyTag':evaluate('\"/\"', 1, it) { return \"/\" },'name':evaluate('\"SomeName\"', 1, it) { return \"SomeName\" },'content':evaluate('\"${grailsApplication.config.myFirstConfig}/something/${someVar}\"', 1, it) { return \"${grailsApplication.config.myFirstConfig}/something/${someVar}\" }] as GroovyPageAttributes,null)\n" +
+            "createTagBody(1, {\n" +
+            "invokeTag('captureMeta','sitemesh',1,['gsp_sm_xmlClosingForEmptyTag':evaluate('\"/\"', 1, it) { return \"/\" },'name':evaluate('\"SomeName\"', 1, it) { return \"SomeName\" },'content':evaluate('\"${grailsApplication.config.myFirstConfig}/something/${someVar}\"', 1, it) { return \"${grailsApplication.config.myFirstConfig}/something/${someVar}\" }] as GroovyPageAttributes,-1)\n" +
             "})\n" +
-            "invokeTag('captureHead','sitemesh',1,[:],body1)\n" +
+            "invokeTag('captureHead','sitemesh',1,[:],1)\n" +
             "printHtmlPart(1)\n" +
             "}\n" + GSP_FOOTER;
         assertEquals(trimAndRemoveCR(expected), trimAndRemoveCR(result.generatedGsp));

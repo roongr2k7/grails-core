@@ -16,13 +16,13 @@
 package org.codehaus.groovy.grails.commons;
 
 import grails.util.Environment;
+import grails.util.Metadata;
 import groovy.util.ConfigObject;
-
-import java.util.Map;
-
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.io.Resource;
+
+import java.util.Map;
 
 /**
  * <p>The main interface representing a running Grails application. This interface's
@@ -174,7 +174,6 @@ public interface GrailsApplication extends ApplicationContextAware {
      * Returns the flatten ConfigObject for use from Java classes.
      * @return The flattened config
      */
-    @SuppressWarnings("rawtypes")
     Map<String, Object> getFlatConfig();
 
     /**
@@ -383,8 +382,7 @@ public interface GrailsApplication extends ApplicationContextAware {
      * but <b>NOT</b> general application settings.</p>
      * @return A read-only Map of data about the application, not environment specific
      */
-    @SuppressWarnings("rawtypes")
-    Map getMetadata();
+    Metadata getMetadata();
 
     /**
      * Retrieves an artefact by its logical property name. For example the logical property name of

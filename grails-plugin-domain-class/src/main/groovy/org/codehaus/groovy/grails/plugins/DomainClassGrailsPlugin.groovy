@@ -15,24 +15,26 @@
  */
 package org.codehaus.groovy.grails.plugins
 
+import grails.artefact.Enhanced
 import grails.util.ClosureToMapPopulator
 import grails.util.GrailsUtil
+
+import org.codehaus.groovy.grails.commons.*
+import org.codehaus.groovy.grails.domain.GormApiSupport
+import org.codehaus.groovy.grails.domain.GrailsDomainClassMappingContext
 import org.codehaus.groovy.grails.support.SoftThreadLocalMap
+import org.codehaus.groovy.grails.validation.ConstraintsEvaluator
 import org.codehaus.groovy.grails.validation.ConstraintsEvaluatorFactoryBean
 import org.codehaus.groovy.grails.validation.GrailsDomainClassValidator
 import org.springframework.beans.BeanUtils
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory
 import org.springframework.beans.factory.config.MethodInvokingFactoryBean
 import org.springframework.context.ApplicationContext
+import org.springframework.datastore.mapping.model.MappingContext
+import org.springframework.datastore.mapping.simple.SimpleMapDatastore
 import org.springframework.validation.BeanPropertyBindingResult
 import org.springframework.validation.Errors
-import org.codehaus.groovy.grails.commons.*
-import org.codehaus.groovy.grails.validation.ConstraintsEvaluator
-import grails.artefact.Enhanced
-import org.codehaus.groovy.grails.domain.GormApiSupport
-import org.springframework.datastore.mapping.model.MappingContext
 import org.springframework.validation.Validator
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory
-import org.springframework.datastore.mapping.simple.SimpleMapDatastore
 
 /**
  * A plugin that configures the domain classes in the spring context.
@@ -58,12 +60,11 @@ class DomainClassGrailsPlugin {
              defaultConstraints = defaultConstraintsMap
         }
 
-        grailsDomainClassMappingContext(org.codehaus.groovy.grails.domain.GrailsDomainClassMappingContext,application)
-
+        grailsDomainClassMappingContext(GrailsDomainClassMappingContext, application)
 
         for (dc in application.domainClasses) {
             // Note the use of Groovy's ability to use dynamic strings in method names!
-            if(!dc.abstract) {
+            if (!dc.abstract) {
                 "${dc.fullName}"(dc.clazz) { bean ->
                     bean.singleton = false
                     bean.autowire = "byName"
@@ -108,9 +109,9 @@ class DomainClassGrailsPlugin {
     def onChange = { event ->
         def cls = event.source
 
-        if(cls instanceof Class) {
+        if (cls instanceof Class) {
             final domainClass = application.addArtefact(DomainClassArtefactHandler.TYPE, cls)
-            if(!domainClass.abstract) {
+            if (!domainClass.abstract) {
                 def beans = beans {
                     "${domainClass.fullName}"(domainClass.clazz) { bean ->
                         bean.singleton = false
@@ -159,9 +160,9 @@ class DomainClassGrailsPlugin {
         for (GrailsDomainClass dc in application.domainClasses) {
             def domainClass = dc
             def isEnhanced = dc.clazz.getAnnotation(Enhanced) != null
-            if(dc instanceof ComponentCapableDomainClass) {
-                for(GrailsDomainClass component in dc.getComponents()) {
-                    if(!application.isDomainClass(component.clazz)) {
+            if (dc instanceof ComponentCapableDomainClass) {
+                for (GrailsDomainClass component in dc.getComponents()) {
+                    if (!application.isDomainClass(component.clazz)) {
                         registerConstraintsProperty(component.metaClass, component)
                     }
                 }
@@ -172,8 +173,8 @@ class DomainClassGrailsPlugin {
             addRelationshipManagementMethods(domainClass, ctx)
 
             metaClass.getDomainClass = {-> domainClass }
-            if(!isEnhanced) {
-                if(!dc.abstract) {
+            if (!isEnhanced) {
+                if (!dc.abstract) {
                     metaClass.constructor = { ->
                         getDomainInstance domainClass, ctx
                     }
@@ -185,12 +186,12 @@ class DomainClassGrailsPlugin {
                 addValidationMethods(application, domainClass, ctx)
             }
             else {
-                if(!domainClass.abstract) {
+                if (!domainClass.abstract) {
                     Validator validator = ctx.getBean("${domainClass.fullName}Validator", Validator)
                     def gormValidationApi = null
                     metaClass.static.currentGormValidationApi = {->
                         // lazy initialize this, since in all likelihood this method will be overriden by the hibernate plugin
-                        if(gormValidationApi == null) {
+                        if (gormValidationApi == null) {
                             gormValidationApi = GormApiSupport.getGormValidationApi(datastore, domainClass.clazz, validator)
                         }
                         return gormValidationApi
@@ -206,8 +207,6 @@ class DomainClassGrailsPlugin {
     private static addValidationMethods(GrailsApplication application, GrailsDomainClass dc, ApplicationContext ctx) {
         def metaClass = dc.metaClass
         def domainClass = dc
-
-
 
         metaClass.hasErrors = {-> delegate.errors?.hasErrors() }
 
@@ -242,7 +241,7 @@ class DomainClassGrailsPlugin {
             def key = "org.codehaus.groovy.grails.ERRORS_${delegate.class.name}_${System.identityHashCode(delegate)}"
             errors = get(key)
             if (!errors) {
-                errors =  new BeanPropertyBindingResult( delegate, delegate.getClass().getName())
+                errors =  new BeanPropertyBindingResult(delegate, delegate.getClass().getName())
                 put key, errors
             }
             errors

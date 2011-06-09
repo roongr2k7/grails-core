@@ -230,7 +230,6 @@ class IvyDependencyManagerTests extends GroovyTestCase {
             dependencies {
                 runtime([group:"opensymphony", name:"oscache", version:"2.4.1", branch:"jdk14"])
             }
-            
         }
 
         ModuleRevisionId dep = manager.dependencies.iterator().next()
@@ -243,7 +242,7 @@ class IvyDependencyManagerTests extends GroovyTestCase {
 
         manager.parseDependencies {
             dependencies {
-                runtime([group:"opensymphony", name:"oscache", version:"2.4.1", branch:"jdk14"]){
+                runtime([group:"opensymphony", name:"oscache", version:"2.4.1", branch:"jdk14"]) {
                     dependencyConfiguration("oscache-runtime")
                 }
             }
@@ -479,7 +478,7 @@ class IvyDependencyManagerTests extends GroovyTestCase {
 
         manager.parseDependencies {
             inherits "test"
-            
+
             dependencies {
                 runtime("opensymphony:foocache:2.4.1") {
                     excludes 'jms'
@@ -577,11 +576,11 @@ class IvyDependencyManagerTests extends GroovyTestCase {
             inherits "global"
         }
 
-        assertTrue( "all default dependencies should be inherited", manager.dependencyDescriptors.every { it.inherited == true } )
-        assertEquals 57, manager.dependencyDescriptors.findAll { it.scope == 'compile'}.size()
-        assertEquals 16, manager.dependencyDescriptors.findAll { it.scope == 'runtime'}.size()
+        assertTrue("all default dependencies should be inherited", manager.dependencyDescriptors.every { it.inherited == true })
+        assertEquals 53, manager.dependencyDescriptors.findAll { it.scope == 'compile'}.size()
+        assertEquals 14, manager.dependencyDescriptors.findAll { it.scope == 'runtime'}.size()
         assertEquals 4, manager.dependencyDescriptors.findAll { it.scope == 'test'}.size()
-        assertEquals 23, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
+        assertEquals 22, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
         assertEquals 3, manager.dependencyDescriptors.findAll { it.scope == 'provided'}.size()
         assertEquals 3, manager.dependencyDescriptors.findAll { it.scope == 'docs'}.size()
     }
@@ -602,8 +601,8 @@ class IvyDependencyManagerTests extends GroovyTestCase {
         assertEquals 0, manager.dependencyDescriptors.findAll { it.scope == 'compile'}.size()
         assertEquals 0, manager.dependencyDescriptors.findAll { it.scope == 'runtime'}.size()
         assertEquals 4, manager.dependencyDescriptors.findAll { it.scope == 'test'}.size()
-        assertEquals 23, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
-        assertEquals 76, manager.dependencyDescriptors.findAll { it.scope == 'provided'}.size()
+        assertEquals 22, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
+        assertEquals 70, manager.dependencyDescriptors.findAll { it.scope == 'provided'}.size()
         assertEquals 3, manager.dependencyDescriptors.findAll { it.scope == 'docs'}.size()
 
         manager = new IvyDependencyManager("project", "0.1",settings)
@@ -614,10 +613,10 @@ class IvyDependencyManagerTests extends GroovyTestCase {
             defaultDependencyClosure()
         }
 
-        assertEquals 57, manager.dependencyDescriptors.findAll { it.scope == 'compile'}.size()
-        assertEquals 16, manager.dependencyDescriptors.findAll { it.scope == 'runtime'}.size()
+        assertEquals 53, manager.dependencyDescriptors.findAll { it.scope == 'compile'}.size()
+        assertEquals 14, manager.dependencyDescriptors.findAll { it.scope == 'runtime'}.size()
         assertEquals 4, manager.dependencyDescriptors.findAll { it.scope == 'test'}.size()
-        assertEquals 23, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
+        assertEquals 22, manager.dependencyDescriptors.findAll { it.scope == 'build'}.size()
         assertEquals 3, manager.dependencyDescriptors.findAll { it.scope == 'provided'}.size()
         assertEquals 3, manager.dependencyDescriptors.findAll { it.scope == 'docs'}.size()
     }
@@ -625,7 +624,7 @@ class IvyDependencyManagerTests extends GroovyTestCase {
     def getCurrentGrailsVersion() {
         def props = new Properties()
         def file = new File("../build.properties")
-        if(!file.exists()) file = new File("build.properties")
+        if (!file.exists()) file = new File("build.properties")
         file.withInputStream {
             props.load(it)
         }
@@ -797,10 +796,10 @@ class IvyDependencyManagerTests extends GroovyTestCase {
                 }
             }
         """)
-        
+
         def manager = new IvyDependencyManager("test", "0.1")
         manager.parseDependencies(config.dependencyConfig)
-        
+
         DefaultDependencyDescriptor dd = manager.getDependencyDescriptors().iterator().next()
         ArtifactId aid = createExcludeArtifactId("jms")
         assertTrue "should have contained exclude",dd.doesExclude(['runtime'] as String[], aid)
@@ -820,9 +819,8 @@ class IvyDependencyManagerTests extends GroovyTestCase {
         dd = manager.getDependencyDescriptors().iterator().next()
         aid = createExcludeArtifactId("jms", 'javax.jms')
         assertTrue "should have contained exclude",dd.doesExclude(['runtime'] as String[], aid)
-        
-        
     }
+
     void testCreateModuleDescriptor() {
         def manager = new IvyDependencyManager("test", "0.1")
         def md = manager.createModuleDescriptor()

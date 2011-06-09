@@ -65,10 +65,9 @@ class ControllersGrailsPlugin {
 
         grailsControllerHelper(MixedGrailsControllerHelper) { bean->
             grailsApplication = ref('grailsApplication')
-            bean.scope = 'prototype'
         }
 
-        mainSimpleController(SimpleGrailsController) {
+        mainSimpleController(SimpleGrailsController) { bean ->
             grailsControllerHelper = ref('grailsControllerHelper')
         }
 
@@ -102,7 +101,7 @@ class ControllersGrailsPlugin {
                     bean.scope = controller.getPropertyValue("scope") ?: defaultScope
                     bean.autowire = "byName"
                     def enhancedAnn = cls.getAnnotation(Enhanced)
-                    if(enhancedAnn != null) {
+                    if (enhancedAnn != null) {
                         instanceControllersApi = ref("instanceControllersApi")
                     }
                     else {
@@ -180,7 +179,7 @@ class ControllersGrailsPlugin {
         Object gspEnc = application.getFlatConfig().get("grails.views.gsp.encoding");
 
         if ((gspEnc != null) && (gspEnc.toString().trim().length() > 0)) {
-            controllerApi.setGspEncoding( gspEnc.toString() )
+            controllerApi.setGspEncoding(gspEnc.toString())
         }
 
         def redirectListeners = ctx.getBeansOfType(RedirectEventListener.class)
@@ -194,15 +193,18 @@ class ControllersGrailsPlugin {
         def enhancer = new MetaClassEnhancer()
         enhancer.addApi(controllerApi)
 
-        for(controller in application.controllerClasses) {
+        for (controller in application.controllerClasses) {
             def controllerClass = controller
             def mc = controllerClass.metaClass
             mc.constructor = {-> ctx.getBean(controllerClass.fullName)}
-            if(nonEnhancedControllerClasses.contains(controllerClass)) {
+            if (nonEnhancedControllerClasses.contains(controllerClass)) {
                 enhancer.enhance mc
             }
         }
 
+        for (GrailsDomainClass domainClass in application.domainClasses) {
+            enhanceDomainWithBinding(ctx, domainClass, domainClass.metaClass)
+        }
     }
 
     static void enhanceDomainWithBinding(ApplicationContext ctx, GrailsDomainClass dc, MetaClass mc) {
@@ -216,7 +218,7 @@ class ControllersGrailsPlugin {
     def onChange = {event ->
         if (application.isArtefactOfType(DomainClassArtefactHandler.TYPE, event.source)) {
             def dc = application.getDomainClass(event.source.name)
-            enhanceDomainWithBinding(event.ctx, dc, dc.metaClass)
+            enhanceDomainWithBinding(event.ctx, dc, GroovySystem.metaClassRegistry.getMetaClass(event.source))
         }
         else if (application.isArtefactOfType(ControllerArtefactHandler.TYPE, event.source)) {
             def context = event.ctx
@@ -236,7 +238,7 @@ class ControllersGrailsPlugin {
                     bean.scope = controllerClass.getPropertyValue("scope") ?: defaultScope
                     bean.autowire = true
                     def enhancedAnn = controllerClass.clazz.getAnnotation(Enhanced)
-                    if(enhancedAnn != null) {
+                    if (enhancedAnn != null) {
                         instanceControllersApi = ref("instanceControllersApi")
                     }
                     else {
@@ -249,7 +251,5 @@ class ControllersGrailsPlugin {
             beanDefinitions.registerBeans(event.ctx)
 
         }
-
-        event.manager?.getGrailsPlugin("controllers")?.doWithDynamicMethods(event.ctx)
     }
 }

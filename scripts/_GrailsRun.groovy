@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.codehaus.groovy.grails.plugins.PluginManagerHolder
+
+import org.codehaus.groovy.grails.cli.interactive.InteractiveMode
 import org.codehaus.groovy.grails.cli.GrailsScriptRunner
 import grails.util.GrailsUtil
 
@@ -85,7 +86,7 @@ private EmbeddableServerFactory loadServerFactory() {
     def load = { name -> classLoader.loadClass(name).newInstance() }
 
 
-    String defaultServer = "org.grails.tomcat.TomcatServerFactory"
+    String defaultServer = "org.grails.plugins.tomcat.TomcatServerFactory"
     def containerClass = getPropertyValue("grails.server.factory", defaultServer)
     EmbeddableServerFactory serverFactory
     try {
@@ -93,7 +94,7 @@ private EmbeddableServerFactory loadServerFactory() {
     }
     catch (ClassNotFoundException cnfe) {
         if (containerClass == defaultServer) {
-            println "WARNING: No default container found, installing Tomcat.."
+            console.error "WARNING: No default container found, installing Tomcat.."
             doInstallPlugin "tomcat", GrailsUtil.grailsVersion
             pluginSettings.clearCache()
             compilePlugins()
@@ -102,8 +103,7 @@ private EmbeddableServerFactory loadServerFactory() {
         }
     }
     catch (Throwable e) {
-        GrailsUtil.deepSanitize(e)
-        e.printStackTrace()
+        console.error e
         event("StatusFinal", ["Failed to load container [$containerClass]: ${e.message}"])
         exit(1)
     }
@@ -135,7 +135,7 @@ private runWar(scheme, host, httpPort, httpsPort) {
  */
 runServer = { Map args ->
     try {
-        println "Running Grails application.."
+        event("StatusUpdate", ["Running Grails application"])
         def message = "Server running. Browse to http://${args.host ?: 'localhost'}:${args.httpPort}$serverContextPath"
 
         EmbeddableServer server = args["server"]
@@ -165,7 +165,7 @@ runServer = { Map args ->
     catch (Throwable t) {
         GrailsUtil.deepSanitize(t)
         if (!(t instanceof SocketException) && !(t.cause instanceof SocketException)) {
-            t.printStackTrace()
+            console.error t
         }
         event("StatusFinal", ["Server failed to start: $t"])
         exit(1)
@@ -177,12 +177,12 @@ runServer = { Map args ->
  * want changes to artifacts automatically detected and loaded.
  */
 target(startPluginScanner: "Starts the plugin manager's scanner that detects changes to artifacts.") {
-	def watcher = new org.codehaus.groovy.grails.compiler.GrailsProjectWatcher(projectCompiler, pluginManager)
-	watcher.start()
+    def watcher = new org.codehaus.groovy.grails.compiler.GrailsProjectWatcher(projectCompiler, pluginManager)
+    watcher.start()
 }
 
 target(stopPluginScanner: "Stops the plugin manager's scanner that detects changes to artifacts.") {
-	// do nothing, here for compatibility
+    // do nothing, here for compatibility
 }
 
 /**
@@ -193,54 +193,15 @@ target(stopPluginScanner: "Stops the plugin manager's scanner that detects chang
 target(watchContext: "Watches the WEB-INF/classes directory for changes and restarts the server if necessary") {
     depends(classpath)
 
-    long lastModified = classesDir.lastModified()
-    boolean keepRunning = true
-    boolean isInteractive = System.getProperty("grails.interactive.mode") == "true"
-
-    if (isInteractive) {
-        def daemonThread = new Thread({
-            println "--------------------------------------------------------"
-            println "Application loaded in interactive mode, type 'exit' to shutdown server or your command name in to continue (hit ENTER to run the last command):"
-
-            def reader = new BufferedReader(new InputStreamReader(System.in))
-            def cmd = reader.readLine()
-            def scriptName
-            while (cmd != null) {
-                if (cmd == 'exit' || cmd == 'quit') break
-                if (cmd != 'run-app') {
-                    scriptName = cmd ? GrailsScriptRunner.processArgumentsAndReturnScriptName(cmd) : scriptName
-                    if (scriptName) {
-                        def now = System.currentTimeMillis()
-                        GrailsScriptRunner.callPluginOrGrailsScript(scriptName)
-                        def end = System.currentTimeMillis()
-                        println "--------------------------------------------------------"
-                        println "Command [$scriptName] completed in ${end - now}ms"
-                    }
-                }
-                else {
-                    println "Cannot run the 'run-app' command. Server already running!"
-                }
-                try {
-                    println "--------------------------------------------------------"
-                    println "Application loaded in interactive mode, type 'exit' to shutdown server or your command name in to continue (hit ENTER to run the last command):"
-
-                    cmd = reader.readLine()
-                }
-                catch (IOException e) {
-                    cmd = ""
-                }
-            }
-
-            println "Stopping Grails server..."
-            grailsServer.stop()
-            keepRunning = false
-
-        })
-        daemonThread.daemon = true
-        daemonThread.run()
+    if (InteractiveMode.current) {
+		Thread.start {
+			def im = InteractiveMode.current
+			im.grailsServer = grailsServer
+			im.run()
+		}
     }
 
-	keepServerAlive()
+    keepServerAlive()
 }
 
 target(keepServerAlive: "Idles the script, ensuring that the server stays running.") {
@@ -253,7 +214,7 @@ target(keepServerAlive: "Idles the script, ensuring that the server stays runnin
         // functional tests so that we can stop the servers that are
         // started.
         if (killFile.exists()) {
-            println "Stopping server..."
+            console.updateStatus "Stopping server..."
             grailsServer.stop()
             killFile.delete()
             keepRunning = false
@@ -267,18 +228,14 @@ target(stopServer: "Stops the Grails servlet container") {
             grailsServer.stop()
         }
         catch (Throwable e) {
-            GrailsUtil.deepSanitize(e)
-            e.printStackTrace()
-            println "Error stopping server: ${e.message}"
+            console.error "Error stopping server: ${e.message}", e
         }
 
         try {
             stopPluginScanner()
         }
         catch (Throwable e) {
-            GrailsUtil.deepSanitize(e)
-            e.printStackTrace()
-            println "Error stopping plugin change scanner: ${e.message}"
+            console.error "Error stopping plugin change scanner: ${e.message}", e
         }
     }
     event("StatusFinal", ["Server stopped"])

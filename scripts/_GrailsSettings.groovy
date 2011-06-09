@@ -76,11 +76,11 @@ if (!System.getProperty("grails.env.set")) {
     if (grailsSettings.defaultEnv && getBinding().variables.containsKey("scriptEnv")) {
         grailsEnv = scriptEnv
         grailsSettings.grailsEnv = grailsEnv
-		configSlurper.environment = grailsEnv
+        configSlurper.environment = grailsEnv
         System.setProperty(Environment.KEY, grailsEnv)
         System.setProperty(Environment.DEFAULT, "")
     }
-    println "Environment set to ${grailsEnv}"
+	console.category << grailsEnv
     System.setProperty("grails.env.set", "true")
 }
 
@@ -97,11 +97,10 @@ else {
 // includes all the Grails JARs, the plugin libraries, and any JARs
 // provided by the application. Useful for task definitions.
 ant.path(id: "core.classpath") {
-    for(url in classLoader.URLs) {
+    for (url in classLoader.URLs) {
         pathelement(location: url.file)
     }
 }
-
 
 // Closure for unpacking a JAR file that's on the classpath.
 grailsUnpack = {Map args ->
@@ -151,19 +150,18 @@ exit = {
  */
 confirmInput = {String message, code="confirm.message" ->
     if (!isInteractive) {
-        println("Cannot ask for input when --non-interactive flag is passed. You need to check the value of the 'isInteractive' variable before asking for input")
+        console.error("Cannot ask for input when --non-interactive flag is passed. You need to check the value of the 'isInteractive' variable before asking for input")
         exit(1)
     }
-    ant.input(message: message, addproperty: code, validargs: "y,Y,n,N")
-    def result = ant.antProject.properties[code]
-    'y'.equalsIgnoreCase(result)
+	else {
+		return console.userInput(message, ["y","n"] as String[])
+	}
 }
 
 // Note: the following only work if you also include _GrailsEvents.
 logError = { String message, Throwable t ->
     GrailsUtil.deepSanitize(t)
-    t.printStackTrace()
-    event("StatusError", ["$message: ${t.message}"])
+	console.error(message, t)
 }
 
 logErrorAndExit = { String message, Throwable t ->

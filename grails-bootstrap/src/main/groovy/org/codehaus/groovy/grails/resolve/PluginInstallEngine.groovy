@@ -15,26 +15,23 @@
 */
 package org.codehaus.groovy.grails.resolve
 
+import grails.build.logging.GrailsConsole
 import grails.util.BuildSettings
 import grails.util.GrailsNameUtils
 import grails.util.Metadata
 import grails.util.PluginBuildSettings
 import groovy.util.slurpersupport.GPathResult
-
+import java.util.regex.Pattern
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
-import java.util.regex.Pattern
-
-import org.apache.ivy.core.module.descriptor.DependencyDescriptor
-import org.apache.ivy.core.module.id.ModuleRevisionId
 import org.apache.ivy.core.report.ArtifactDownloadReport
 import org.apache.ivy.core.report.ResolveReport
-import org.codehaus.groovy.grails.cli.CommandLineHelper
 import org.codehaus.groovy.grails.cli.ScriptExitException
+import org.codehaus.groovy.grails.plugins.GrailsPluginInfo
 import org.codehaus.groovy.grails.plugins.GrailsPluginUtils
 import org.springframework.core.io.Resource
 
-/**
+ /**
  * Manages the installation and uninstallation of plugins from a Grails project.
  *
  * @author Graeme Rocher
@@ -45,17 +42,16 @@ class PluginInstallEngine {
     static final CORE_PLUGINS = ['core', 'i18n','converters','mimeTypes', 'controllers','webflow', 'dataSource', 'domainClass', 'filters','logging', 'groovyPages']
 
     Closure errorHandler = { String msg -> throw new ScriptExitException(msg) }
-    Closure eventHandler = { String name, String msg -> println msg }
+    Closure eventHandler = { String name, String msg -> GrailsConsole.instance.updateStatus msg }
     Closure pluginScriptRunner
     Closure postInstallEvent
     Closure postUninstallEvent
     /**
-     * plugins that were installed in the last execution of installPlugin
+     * plugins that were installed in the last  execution of installPlugin
      */
     List installedPlugins = []
     def pluginDirVariableStore = [:]
     boolean isInteractive = true
-    CommandLineHelper commandLineHelper = new CommandLineHelper(System.out)
 
     protected Metadata metadata
     protected PluginBuildSettings pluginSettings
@@ -102,7 +98,7 @@ class PluginInstallEngine {
 
         // Get the plugin dependency descriptors for the max version of each applicable dependency
         def pluginDescriptors = dependencyManager.effectivePluginDependencyDescriptors
-        
+
         def newPlugins = findMissingOrUpgradePlugins(pluginDescriptors)
         if (newPlugins) {
             eventHandler "StatusUpdate", "Installing ${newPlugins.size} plugins, please wait"
@@ -117,12 +113,12 @@ class PluginInstallEngine {
         }
         if (changingPlugins) {
             def noChangingPlugins = changingPlugins.size()
-            eventHandler "StatusBegin", "Checking ${noChangingPlugins} snapshot plugin${noChangingPlugins > 1 ? 's' : ''} for remote updates, please wait"
-            installPlugins(existingPlugins)
-            eventHandler "StatusEnd", "Snapshot plugin checking complete"
+            eventHandler "StatusUpdate", "Checking ${noChangingPlugins} changing plugin${noChangingPlugins > 1 ? 's' : ''} for updates"
+            installPlugins(changingPlugins)
+            eventHandler "StatusUpdate", "Changing plugin checking complete"
         }
 
-        checkPluginsToUninstall(pluginDescriptors.collect { it.dependencyRevisionId })
+        checkPluginsToUninstall(pluginDescriptors)
     }
 
     /**
@@ -225,7 +221,7 @@ class PluginInstallEngine {
             return
         }
 
-        eventHandler "StatusUpdate", "Installing zip ${pluginZip}..."
+        eventHandler "StatusUpdate", "Installing zip ${pluginZip.name}..."
 
         installedPlugins << pluginInstallPath
 
@@ -233,7 +229,7 @@ class PluginInstallEngine {
             ant.delete(dir: pluginInstallPath, failonerror: false)
             ant.mkdir(dir: pluginInstallPath)
             ant.unzip(dest: pluginInstallPath, src: pluginZip)
-            eventHandler "StatusUpdate", "Installed plugin ${fullPluginName} to location ${pluginInstallPath}."
+            eventHandler "StatusUpdate", "Installed plugin ${fullPluginName}"
         }
         else {
             errorHandler "Cannot install plugin. Plugin install would override inline plugin configuration which is not allowed."
@@ -271,7 +267,6 @@ class PluginInstallEngine {
 
             registerPluginWithMetadata(pluginName, pluginVersion)
 
-            displayNewScripts(fullPluginName, pluginInstallPath)
 
             postInstall(pluginInstallPath)
             eventHandler("PluginInstalled", fullPluginName)
@@ -340,25 +335,12 @@ class PluginInstallEngine {
 
     protected void assertNoExistingInlinePlugin(String name) {
         def inlinePlugins = settings.config.grails.plugin.location
-        
+
         if (inlinePlugins.containsKey(name)) {
             def pluginReference = inlinePlugins[name]
             errorHandler("""\
 Plugin [$name] is aliased as [grails.plugin.location.$name] to the location [$pluginReference] in grails-app/conf/BuildConfig.groovy.
 You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove the configuration to continue.""");
-        }
-    }
-
-    protected void displayNewScripts(pluginName, installPath) {
-        def providedScripts = new File("${installPath}/scripts").listFiles().findAll { !it.name.startsWith('_') && it.name.endsWith(".groovy")}
-        eventHandler("StatusFinal", "Plugin ${pluginName} installed")
-        if (providedScripts) {
-            println "Plugin provides the following new scripts:"
-            println "------------------------------------------"
-            providedScripts.each { File file ->
-                def scriptName = GrailsNameUtils.getScriptName(file.name)
-                println "grails ${scriptName}"
-            }
         }
     }
 
@@ -371,7 +353,7 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
             IvyDependencyManager dependencyManager = settings.dependencyManager
             dependencyManager.resetGrailsPluginsResolver()
 
-            def dependencyConfigurationsToAdd = [IvyDependencyManager.RUNTIME_CONFIGURATION]
+            def dependencyConfigurationsToAdd = [IvyDependencyManager.RUNTIME_CONFIGURATION, IvyDependencyManager.BUILD_CONFIGURATION, IvyDependencyManager.PROVIDED_CONFIGURATION]
             if (settings.grailsEnv == "test") {
                 dependencyConfigurationsToAdd << IvyDependencyManager.TEST_CONFIGURATION
             }
@@ -494,7 +476,6 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
             }
         }
         catch (e) {
-            e.printStackTrace()
             errorHandler("An error occured installing the plugin [$name${version ? '-' + version : ''}]: ${e.message}")
         }
     }
@@ -520,7 +501,7 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
         }
     }
 
-    private void runPluginScript( File scriptFile, fullPluginName, msg ) {
+    private void runPluginScript(File scriptFile, fullPluginName, msg) {
         if (pluginScriptRunner != null) {
             if (pluginScriptRunner.maximumNumberOfParameters < 3) {
                 throw new IllegalStateException("The [pluginScriptRunner] closure property must accept at least 3 arguments")
@@ -579,27 +560,36 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
     }
 
     private boolean confirmInput(String msg) {
-        commandLineHelper.userInput(msg, ['y','n'] as String[]) == 'y'
+        GrailsConsole.getInstance().userInput(msg, ['y','n'] as String[]) == 'y'
     }
 
-    protected void checkPluginsToUninstall(List<DependencyDescriptor> pluginDeps) {
+    protected void checkPluginsToUninstall(Collection<EnhancedDefaultDependencyDescriptor> pluginDeps) {
         // Find out which plugins are in the search path but not in the
         // metadata. We only check on the plugins in the project's "plugins"
         // directory and the global "plugins" dir. Plugins loaded via an
         // explicit path should be left alone.
-        def pluginDirs = pluginSettings.implicitPluginDirectories
-        def pluginsToUninstall = pluginDirs.findAll { Resource r ->
-            !pluginDeps.find {  ModuleRevisionId plugin ->
-                r.filename ==~ "$plugin.name-.+"
+        def pluginInfos = pluginSettings.getPluginInfos()
+        def dependencyManager = settings.dependencyManager
+        def pluginsToUninstall = pluginInfos.findAll { GrailsPluginInfo pluginInfo ->
+            !pluginDeps.find {  EnhancedDefaultDependencyDescriptor dd ->
+                pluginInfo.pluginDir.file.canonicalFile.name ==~ "${dd.dependencyRevisionId.name}-.+"
             }
         }
 
-        for (Resource pluginDir in pluginsToUninstall) {
+        pluginsToUninstall = pluginsToUninstall.findAll { GrailsPluginInfo pluginInfo ->
+            !dependencyManager.isPluginTransitivelyIncluded(pluginInfo.name) && pluginInfo.pluginDir.file != settings.baseDir
+        }
+
+        for (GrailsPluginInfo pluginInfo in pluginsToUninstall) {
+            Resource pluginDir = pluginInfo.pluginDir
+            final pluginDirFile = pluginDir.file.canonicalFile
+            if ((pluginDirFile == settings.baseDir) || settings.isInlinePluginLocation(pluginDirFile)) continue;
+
             if (pluginSettings.isGlobalPluginLocation(pluginDir)) {
                 registerMetadataForPluginLocation(pluginDir)
             }
             else {
-                if (!isInteractive || confirmInput("Plugin [${pluginDir.filename}] is installed, but was not found in the application's metadata, do you want to uninstall?")) {
+                if (!isInteractive || confirmInput("Plugin [${pluginInfo.name}] is installed, but was not found in the application's metadata, do you want to uninstall?")) {
                     uninstallPlugin(pluginDir.filename)
                 }
                 else {
@@ -652,7 +642,9 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
     }
 
     private registerMetadataForPluginLocation(Resource pluginDir) {
-        def plugin = pluginSettings.getMetadataForPlugin(pluginDir.filename)
-        registerPluginWithMetadata(plugin.@name.text(), plugin.@version.text())
+        def plugin = pluginSettings.getPluginInfo(pluginDir.file.absolutePath)
+        if (plugin != null) {
+            registerPluginWithMetadata(plugin.name, plugin.version)
+        }
     }
 }

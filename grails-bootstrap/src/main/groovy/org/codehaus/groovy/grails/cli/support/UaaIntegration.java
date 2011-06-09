@@ -15,6 +15,7 @@
  */
 package org.codehaus.groovy.grails.cli.support;
 
+import grails.build.logging.GrailsConsole;
 import grails.util.BuildSettings;
 import grails.util.PluginBuildSettings;
 import groovy.util.slurpersupport.GPathResult;
@@ -55,7 +56,7 @@ public class UaaIntegration {
            + "To consent to the Terms of Use, please enter 'Y'. Enter 'N' to indicate your do not consent and anonymous data collection will remain disabled.\n"
            + "##########################################################.\n"
            + "Enter Y or N:";
-    public static final int ONE_MINUTE = 60000;
+    public static final int ONE_MINUTE = 180000;
 
 
     public static boolean isAvailable() {
@@ -66,30 +67,25 @@ public class UaaIntegration {
         final UaaService uaaService = UaaServiceFactory.getUaaService();
 
         final UaaClient.Privacy.PrivacyLevel privacyLevel = uaaService.getPrivacyLevel();
-        if(!uaaService.isUaaTermsOfUseAccepted() && interactive) {
+        if (!uaaService.isUaaTermsOfUseAccepted() && interactive) {
             // prompt for UAA choice
-            if(privacyLevel.equals( UaaClient.Privacy.PrivacyLevel.UNDECIDED_TOU )) {
+            if (privacyLevel.equals(UaaClient.Privacy.PrivacyLevel.UNDECIDED_TOU)) {
                 while (true) {
-                    System.out.print(MESSAGE);
-                    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-                    try {
-                        String selection = br.readLine().trim();
-                        if("y".equalsIgnoreCase(selection)) {
-                            uaaService.setPrivacyLevel(UaaClient.Privacy.PrivacyLevel.ENABLE_UAA);
-                            break;
-                        }
-                        else if("n".equalsIgnoreCase(selection)) {
-                            uaaService.setPrivacyLevel(UaaClient.Privacy.PrivacyLevel.DECLINE_TOU);
-                            break;
-                        }
-                    } catch (IOException e) {
+                    GrailsConsole console = GrailsConsole.getInstance();
+                    String selection = console.userInput(MESSAGE, new String[]{"y", "n"});
+                    if ("y".equalsIgnoreCase(selection)) {
+                        uaaService.setPrivacyLevel(UaaClient.Privacy.PrivacyLevel.ENABLE_UAA);
+                        break;
+                    }
+                    else if ("n".equalsIgnoreCase(selection)) {
+                        uaaService.setPrivacyLevel(UaaClient.Privacy.PrivacyLevel.DECLINE_TOU);
                         break;
                     }
 
                 }
             }
         }
-        else if(isUaaAccepted(privacyLevel)) {
+        else if (isUaaAccepted(privacyLevel)) {
             Runnable r = new Runnable() {
                 public void run() {
                     final UaaClient.Product product = VersionHelper.getProduct("Grails", settings.getGrailsVersion());
@@ -97,7 +93,7 @@ public class UaaIntegration {
 
                     final ChainResolver chainResolver = settings.getDependencyManager().getChainResolver();
                     GrailsRepoResolver centralRepo = findCentralRepoResolver(chainResolver);
-                    if(centralRepo != null) {
+                    if (centralRepo != null) {
 
                         final GPathResult pluginList = centralRepo.getPluginList(new File(settings.getGrailsWorkDir() + "/plugin-list-" + centralRepo.getName() + ".xml"));
 
@@ -105,16 +101,16 @@ public class UaaIntegration {
                         for (GrailsPluginInfo pluginInfo : pluginInfos) {
                             boolean registerUsage = false;
 
-                            if(settings.getDefaultPluginSet().contains(pluginInfo.getName())) {
+                            if (settings.getDefaultPluginSet().contains(pluginInfo.getName())) {
                                 registerUsage = true;
                             }
                             else {
                                 final Object plugin = UaaIntegrationSupport.findPlugin(pluginList, pluginInfo.getName());
-                                if(plugin != null) {
+                                if (plugin != null) {
                                     registerUsage = true;
                                 }
                             }
-                            if(registerUsage) {
+                            if (registerUsage) {
                                 uaaService.registerFeatureUsage(product, VersionHelper.getFeatureUse(pluginInfo.getName(), pluginInfo.getVersion()));
                             }
                         }
@@ -122,20 +118,19 @@ public class UaaIntegration {
                 }
             };
 
-
             ConcurrentTaskScheduler scheduler = new ConcurrentTaskScheduler();
-
-            scheduler.schedule(r, new Date(System.currentTimeMillis()+ ONE_MINUTE));
+            scheduler.schedule(r, new Date(System.currentTimeMillis() + ONE_MINUTE));
         }
     }
 
     private static GrailsRepoResolver findCentralRepoResolver(ChainResolver chainResolver) {
-        final List resolvers = chainResolver.getResolvers();
+        @SuppressWarnings("unchecked")
+        final List<Object> resolvers = chainResolver.getResolvers();
         for (Object resolver : resolvers) {
-            if(resolver instanceof GrailsRepoResolver) {
+            if (resolver instanceof GrailsRepoResolver) {
                 final GrailsRepoResolver grailsRepoResolver = (GrailsRepoResolver) resolver;
                 final String resolverName = grailsRepoResolver.getName();
-                if(resolverName != null && resolverName.equals("grailsCentral")) {
+                if (resolverName != null && resolverName.equals("grailsCentral")) {
                     return grailsRepoResolver;
                 }
             }
@@ -144,7 +139,7 @@ public class UaaIntegration {
     }
 
     private static boolean isUaaAccepted(UaaClient.Privacy.PrivacyLevel privacyLevel) {
-        return privacyLevel.equals( UaaClient.Privacy.PrivacyLevel.ENABLE_UAA ) || privacyLevel.equals( UaaClient.Privacy.PrivacyLevel.LIMITED_DATA );
+        return privacyLevel.equals(UaaClient.Privacy.PrivacyLevel.ENABLE_UAA) ||
+               privacyLevel.equals(UaaClient.Privacy.PrivacyLevel.LIMITED_DATA);
     }
-
 }

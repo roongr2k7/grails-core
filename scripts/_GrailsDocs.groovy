@@ -84,7 +84,7 @@ h2. Description
 And provide a detailed description
         '''
 
-        println "Example documentation created in ${basedir}/src/docs. Use 'grails doc' to publish."
+        console.updateStatus "Example documentation created in ${basedir}/src/docs. Use 'grails doc' to publish."
     }
     else {
         docsInternal()
@@ -178,7 +178,7 @@ target(refdocs:"Generates Grails style reference documentation") {
                 ant.mkdir(dir:refDir)
                 def refFile = new File("${refDir}/${m.name}.gdoc")
                 if (!refFile.exists()) {
-                    println "Generating documentation ${refFile}"
+                    console.updateStatus "Generating documentation ${refFile}"
                     refFile.write """
 h1. ${m.name}
 
@@ -226,7 +226,7 @@ ${m.arguments?.collect { '* @'+GrailsNameUtils.getPropertyName(it)+'@\n' }}
 
         createdManual = true
 
-        println "Built user manual at ${refDocsDir}/index.html"
+        console.updateStatus "Built user manual at ${refDocsDir}/index.html"
     }
 }
 
@@ -253,37 +253,37 @@ target(pdf: "Produces PDF documentation") {
 }
 
 target(createIndex: "Produces an index.html page in the root directory") {
-	if (docsDisabled()) {
-		 return
-	}
+    if (docsDisabled()) {
+         return
+    }
 
-	new File("${grailsSettings.docsOutputDir}/all-docs.html").withWriter { writer ->
-		writer.write """\
+    new File("${grailsSettings.docsOutputDir}/all-docs.html").withWriter { writer ->
+        writer.write """\
 <html>
 
-	<head>
-		<title>$grailsAppName Documentation</title>
-	</head>
-    
-	<body>
-		<a href="api/index.html">Java API docs</a><br />
-		<a href="gapi/index.html">Groovy API docs</a><br />
+    <head>
+        <title>$grailsAppName Documentation</title>
+    </head>
+
+    <body>
+        <a href="api/index.html">Java API docs</a><br />
+        <a href="gapi/index.html">Groovy API docs</a><br />
 """
 
-		if (createdManual) {
-			writer.write '\t\t<a href="guide/index.html">Manual (Page per chapter)</a><br />\n'
-			writer.write '\t\t<a href="guide/single.html">Manual (Single page)</a><br />\n'
-		}
+        if (createdManual) {
+            writer.write '\t\t<a href="guide/index.html">Manual (Page per chapter)</a><br />\n'
+            writer.write '\t\t<a href="guide/single.html">Manual (Single page)</a><br />\n'
+        }
 
-		if (createdPdf) {
-			writer.write '\t\t<a href="guide/single.pdf">Manual (PDF)</a><br />\n'
-		}
+        if (createdPdf) {
+            writer.write '\t\t<a href="guide/single.pdf">Manual (PDF)</a><br />\n'
+        }
 
-		writer.write """\
-	</body>
+        writer.write """\
+    </body>
 </html>
 """
-	}
+    }
 }
 
 def readPluginMetadataForDocs(DocPublisher publisher) {

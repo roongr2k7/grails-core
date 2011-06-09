@@ -31,6 +31,7 @@ includeTargets << grailsScript("_GrailsEvents")
 target (cleanAll: "Cleans a Grails project") {
     clean()
     cleanTestReports()
+	console.updateStatus "Application cleaned."
 }
 
 target (clean: "Implementation of clean") {
@@ -48,11 +49,11 @@ target (cleanCompiledSources: "Cleans compiled Java and Groovy sources") {
     ant.delete(dir:pluginClassesDirPath, failonerror:false)
     ant.delete(dir:resourcesDirPath)
     ant.delete(dir:testDirPath)
-	ant.delete(failonerror:false, includeemptydirs: true) {
-		fileset(dir:grailsSettings.projectWorkDir) {
-			include name:"*.resolve"
-		}
-	}
+    ant.delete(failonerror:false, includeemptydirs: true) {
+        fileset(dir:grailsSettings.projectWorkDir) {
+            include name:"*.resolve"
+        }
+    }
 }
 
 target (cleanTestReports: "Cleans the test reports") {

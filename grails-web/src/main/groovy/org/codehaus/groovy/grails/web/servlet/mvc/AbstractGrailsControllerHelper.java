@@ -65,19 +65,12 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
 
     protected GrailsApplication application;
     protected ApplicationContext applicationContext;
-    @SuppressWarnings("rawtypes")
-    protected Map chainModel = Collections.EMPTY_MAP;
     protected ServletContext servletContext;
     protected GrailsApplicationAttributes grailsAttributes;
-    protected GrailsWebRequest webRequest;
 
     private static final Log LOG = LogFactory.getLog(AbstractGrailsControllerHelper.class);
     private static final String PROPERTY_CHAIN_MODEL = "chainModel";
     private static final String FORWARD_CALLED = "org.codehaus.groovy.grails.FORWARD_CALLED";
-
-    protected String id;
-    protected String controllerName;
-    protected String actionName;
 
 
     public ServletContext getServletContext() {
@@ -135,13 +128,9 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         HttpServletRequest request = grailsWebRequest.getCurrentRequest();
         HttpServletResponse response = grailsWebRequest.getCurrentResponse();
 
-        configureStateForWebRequest(grailsWebRequest, request);
-
         if (uri.endsWith("/")) {
             uri = uri.substring(0,uri.length() - 1);
         }
-
-        // if the id is blank check if its a request parameter
 
         // Step 2: lookup the controller in the application.
         GrailsControllerClass controllerClass = getControllerClassByURI(uri);
@@ -150,11 +139,11 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
             throw new UnknownControllerException("No controller found for URI [" + uri + "]!");
         }
 
-        actionName = controllerClass.getClosurePropertyName(uri);
+        String actionName = controllerClass.getClosurePropertyName(uri);
         grailsWebRequest.setActionName(actionName);
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Processing request for controller ["+controllerName+"], action ["+actionName+"], and id ["+id+"]");
+            LOG.debug("Processing request for controller action ["+actionName+"]");
         }
         // Step 3: load controller from application context.
         GroovyObject controller = getControllerInstance(controllerClass);
@@ -169,7 +158,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
             }
         }
 
-        request.setAttribute( GrailsApplicationAttributes.CONTROLLER, controller );
+        request.setAttribute(GrailsApplicationAttributes.CONTROLLER, controller);
 
         // Step 4: Set grails attributes in request scope
         request.setAttribute(GrailsApplicationAttributes.REQUEST_SCOPE_ID,grailsAttributes);
@@ -177,37 +166,39 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         // Step 5: get the view name for this URI.
         String viewName = controllerClass.getViewByURI(uri);
 
-        boolean executeAction = invokeBeforeInterceptor(controller, controllerClass);
+        boolean executeAction = invokeBeforeInterceptor(controller, actionName, controllerClass);
         // if the interceptor returned false don't execute the action
         if (!executeAction) {
             return null;
         }
 
-        ModelAndView mv = executeAction(controller, controllerClass, viewName, request, response, params);
+        ModelAndView mv = executeAction(controller, actionName, viewName, grailsWebRequest, params);
 
-        boolean returnModelAndView = invokeAfterInterceptor(controllerClass, controller, mv) && !response.isCommitted();
+        boolean returnModelAndView = invokeAfterInterceptor(controllerClass, controller, actionName, mv) && !response.isCommitted();
         return returnModelAndView ? mv : null;
     }
 
-    protected abstract Object retrieveAction(GroovyObject controller, String actionName, HttpServletResponse response);
+    protected abstract Object retrieveAction(GroovyObject controller, @SuppressWarnings("hiding") String actionName,
+            HttpServletResponse response);
 
     /**
      * Invokes the action defined by the webRequest for the given arguments.
      *
      * @param controller The controller instance
-     * @param controllerClass The GrailsControllerClass that defines the conventions within the controller
+     * @param actionName The current action
      * @param viewName The name of the view to delegate to if necessary
-     * @param request The HttpServletRequest object
-     * @param response The HttpServletResponse object
+     * @param webRequest the current web Request
      * @param params A map of parameters
      * @return A Spring ModelAndView instance
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     protected ModelAndView executeAction(GroovyObject controller,
-            GrailsControllerClass controllerClass,
-            String viewName, HttpServletRequest request, HttpServletResponse response, Map params) {
+            String actionName,
+            String viewName, GrailsWebRequest webRequest, Map params) {
         // Step 5a: Check if there is a before interceptor if there is execute it
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        HttpServletResponse response = webRequest.getCurrentResponse();
+        HttpServletRequest request = webRequest.getCurrentRequest();
         try {
             // Step 6: get action from implementation
             Object action = retrieveAction(controller, actionName, response);
@@ -215,10 +206,9 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
                         // Step 7: process the action
             Object returnValue = null;
             try {
-                returnValue = handleAction( controller,action,request,response,params );
+                returnValue = handleAction(controller,action,request,response,params);
             }
             catch (Throwable t) {
-                GrailsUtil.deepSanitize(t);
                 String pluginName = GrailsPluginUtils.getPluginName(controller.getClass());
                 pluginName = pluginName != null ? "in plugin ["+pluginName+"]" : "";
                 throw new ControllerExecutionException("Executing action [" + actionName +
@@ -227,7 +217,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
             }
 
             // Step 8: determine return value type and handle accordingly
-            initChainModel(controller);
+            Map chainModel = initChainModel(request);
 
             if (response.isCommitted() || request.getAttribute(GrailsApplicationAttributes.REDIRECT_ISSUED) != null) {
                 if (LOG.isDebugEnabled()) {
@@ -238,13 +228,13 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
 
             TokenResponseHandler handler = (TokenResponseHandler) request.getAttribute(TokenResponseHandler.KEY);
             if (handler != null && !handler.wasInvoked() && handler.wasInvalidToken()) {
-                String uri = (String) request.getAttribute(SynchronizerToken.URI);
+                String uri = (String) request.getAttribute(SynchronizerTokensHolder.TOKEN_URI);
                 if (uri == null) {
                     uri = WebUtils.getForwardURI(request);
                 }
                 try {
                     FlashScope flashScope = webRequest.getFlashScope();
-                    flashScope.put("invalidToken", request.getParameter(SynchronizerToken.KEY));
+                    flashScope.put("invalidToken", request.getParameter(SynchronizerTokensHolder.TOKEN_KEY));
                     response.sendRedirect(uri);
                     return null;
                 }
@@ -256,7 +246,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Action ["+actionName+"] executed with result ["+returnValue+"] and view name ["+viewName+"]");
                 }
-                ModelAndView mv = handleActionResponse(controller,returnValue,actionName,viewName);
+                ModelAndView mv = handleActionResponse(controller,returnValue, webRequest, chainModel, actionName,  viewName);
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Action ["+actionName+"] handled, created Spring model and view ["+mv+"]");
                 }
@@ -276,7 +266,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         }
     }
 
-    private boolean invokeBeforeInterceptor(GroovyObject controller, GrailsControllerClass controllerClass) {
+    private boolean invokeBeforeInterceptor(GroovyObject controller, String actionName, GrailsControllerClass controllerClass) {
         boolean executeAction = true;
         if (controllerClass.isInterceptedBefore(controller, actionName)) {
             Closure<?> beforeInterceptor = controllerClass.getBeforeInterceptor(controller);
@@ -294,20 +284,9 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         return executeAction;
     }
 
-    private void configureStateForWebRequest(GrailsWebRequest grailsWebRequest, HttpServletRequest request) {
-        this.webRequest = grailsWebRequest;
-        actionName = grailsWebRequest.getActionName();
-        controllerName = grailsWebRequest.getControllerName();
-        id = grailsWebRequest.getId();
-
-        if (StringUtils.isBlank(id) && request.getParameter(GrailsWebRequest.ID_PARAMETER) != null) {
-            id = request.getParameter(GrailsWebRequest.ID_PARAMETER);
-        }
-    }
-
     @SuppressWarnings("rawtypes")
     private boolean invokeAfterInterceptor(GrailsControllerClass controllerClass,
-            GroovyObject controller, ModelAndView mv) {
+            GroovyObject controller, String actionName, ModelAndView mv) {
         // Step 9: Check if there is after interceptor
         Object interceptorResult = null;
         if (controllerClass.isInterceptedAfter(controller,actionName)) {
@@ -339,7 +318,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         return grailsAttributes;
     }
 
-    public Object handleAction(GroovyObject controller, @SuppressWarnings("rawtypes") Object action, HttpServletRequest request,
+    public Object handleAction(GroovyObject controller, Object action, HttpServletRequest request,
             HttpServletResponse response) {
         return handleAction(controller,action,request,response,Collections.EMPTY_MAP);
     }
@@ -348,16 +327,16 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
 
     @SuppressWarnings("rawtypes")
     public Object handleAction(GroovyObject controller, Object action, HttpServletRequest request,
-            HttpServletResponse response, Map params) {
+            @SuppressWarnings("unused") HttpServletResponse response, Map params) {
         GrailsParameterMap paramsMap = (GrailsParameterMap)controller.getProperty("params");
         // if there are additional params add them to the params dynamic property
         if (params != null && !params.isEmpty()) {
-            paramsMap.putAll( params );
+            paramsMap.putAll(params);
         }
         Object returnValue = action != null ? invoke(controller, action) : null;
 
         // Step 8: add any errors to the request
-        request.setAttribute( GrailsApplicationAttributes.ERRORS, controller.getProperty(ControllerDynamicMethods.ERRORS_PROPERTY) );
+        request.setAttribute(GrailsApplicationAttributes.ERRORS, controller.getProperty(ControllerDynamicMethods.ERRORS_PROPERTY));
 
         return returnValue;
     }
@@ -366,7 +345,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
      * @see org.codehaus.groovy.grails.web.servlet.mvc.GrailsControllerHelper#handleActionResponse(org.codehaus.groovy.grails.commons.GrailsControllerClass, java.lang.Object, java.lang.String, java.lang.String)
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public ModelAndView handleActionResponse( GroovyObject controller,Object returnValue,String closurePropertyName, String viewName) {
+    public ModelAndView handleActionResponse(GroovyObject controller, Object returnValue, GrailsWebRequest webRequest, Map chainModel, String closurePropertyName, String viewName) {
         boolean viewNameBlank = (viewName == null || viewName.length() == 0);
         // reset the metaclass
         ModelAndView explicitModelAndView = (ModelAndView)controller.getProperty(ControllerDynamicMethods.MODEL_AND_VIEW_PROPERTY);
@@ -439,14 +418,16 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
     }
 
     @SuppressWarnings("rawtypes")
-    private void initChainModel(GroovyObject controller) {
-        FlashScope fs = grailsAttributes.getFlashScope((HttpServletRequest)controller.getProperty(ControllerDynamicMethods.REQUEST_PROPERTY));
+    private Map initChainModel(HttpServletRequest request) {
+        FlashScope fs = grailsAttributes.getFlashScope(request);
         if (fs.containsKey(PROPERTY_CHAIN_MODEL)) {
-            chainModel = (Map)fs.get(PROPERTY_CHAIN_MODEL);
+            Map chainModel = (Map)fs.get(PROPERTY_CHAIN_MODEL);
             if (chainModel == null) {
                 chainModel = Collections.EMPTY_MAP;
             }
+            return chainModel;
         }
+        return Collections.EMPTY_MAP;
     }
 
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -458,7 +439,7 @@ public abstract class AbstractGrailsControllerHelper implements ApplicationConte
         this.grailsAttributes = new DefaultGrailsApplicationAttributes(servletContext);
     }
 
-    public void setGrailsApplication(GrailsApplication application){
+    public void setGrailsApplication(GrailsApplication application) {
         this.application = application;
     }
 }

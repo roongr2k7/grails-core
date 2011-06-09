@@ -20,7 +20,13 @@ import grails.util.GrailsUtil;
 import groovy.lang.Binding;
 import groovy.lang.Closure;
 import groovy.lang.Script;
-import org.apache.commons.beanutils.MethodUtils;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.ServletContext;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.groovy.grails.commons.ClassPropertyFetcher;
@@ -43,11 +49,6 @@ import org.springframework.mock.web.MockServletContext;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.context.WebApplicationContext;
-
-import javax.servlet.ServletContext;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Handles the runtime configuration of the Grails ApplicationContext.
@@ -97,15 +98,15 @@ public class GrailsRuntimeConfigurator implements ApplicationContextAware {
             pluginManager = parent != null ? parent.getBean(GrailsPluginManager.class) : null;
             pluginManager = pluginManager != null ? pluginManager : PluginManagerHolder.getPluginManager();
         } catch (BeansException e) {
-			// ignore
+            // ignore
         }
-        if(pluginManager == null) {
+        if (pluginManager == null) {
             pluginManager = PluginManagerHolder.getPluginManager();
         }
-		if(pluginManager == null) {
-			pluginManager = new DefaultGrailsPluginManager("**/plugins/*/**GrailsPlugin.groovy", application);
-		}
-        PluginManagerHolder.setPluginManager(pluginManager);            		
+        if (pluginManager == null) {
+            pluginManager = new DefaultGrailsPluginManager("**/plugins/*/**GrailsPlugin.groovy", application);
+        }
+        PluginManagerHolder.setPluginManager(pluginManager);
     }
 
     /**
@@ -337,7 +338,10 @@ public class GrailsRuntimeConfigurator implements ApplicationContextAware {
                 }
                 if (groovySpringResourcesClass != null) {
                     springGroovyResourcesBeanBuilder = new BeanBuilder(null, config,Thread.currentThread().getContextClassLoader());
-                    springGroovyResourcesBeanBuilder.setBinding(new Binding(new HashMap() {{ put("application", application); }}));
+                    springGroovyResourcesBeanBuilder.setBinding(new Binding(new HashMap() {{ 
+                        put("application", application); 
+                        put("grailsApplication", application); // GRAILS-7550
+                    }}));
                     Script script = (Script) groovySpringResourcesClass.newInstance();
                     script.run();
                     Object beans = script.getProperty("beans");
@@ -345,7 +349,6 @@ public class GrailsRuntimeConfigurator implements ApplicationContextAware {
                 }
             }
             catch (Exception ex) {
-                GrailsUtil.deepSanitize(ex);
                 LOG.error("[RuntimeConfiguration] Unable to load beans from resources.groovy", ex);
             }
         }

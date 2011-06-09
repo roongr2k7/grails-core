@@ -15,15 +15,14 @@
 package org.codehaus.groovy.grails.plugins.web.taglib
 
 import grails.artefact.Artefact
-import grails.util.Environment
 import grails.util.GrailsUtil
 import grails.util.Metadata
+import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.plugins.GrailsPluginManager
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.mapping.UrlMappingsHolder
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsWebRequest
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
@@ -67,6 +66,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
     /**
      * Obtains the value of a cookie.
      *
+     * @emptyTag
+     * 
      * @attr name REQUIRED the cookie name
      */
     def cookie = { attrs ->
@@ -79,6 +80,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
     /**
      * Renders the specified request header value.
      *
+     * @emptyTag
+     * 
      * @attr name REQUIRED the header name
      */
     def header = { attrs ->
@@ -115,6 +118,9 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * Creates a link to a resource, generally used as a method rather than a tag.<br/>
      *
      * eg. &lt;link type="text/css" href="${createLinkTo(dir:'css',file:'main.css')}" /&gt;
+     * 
+     * @emptyTag
+     * 
      */
     def createLinkTo = { attrs ->
         GrailsUtil.deprecated "Tag [createLinkTo] is deprecated please use [resource] instead"
@@ -125,6 +131,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * Creates a link to a resource, generally used as a method rather than a tag.<br/>
      *
      * eg. &lt;link type="text/css" href="${resource(dir:'css',file:'main.css')}" /&gt;
+     *
+     * @emptyTag
      * 
      * @attr base Sets the prefix to be added to the link target address, typically an absolute server URL. This overrides the behaviour of the absolute property, if both are specified.x≈
      * @attr contextPath the context path to use (relative to the application context path). Defaults to "" or path to the plugin for a plugin view or template.
@@ -134,10 +142,34 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * @attr plugin The plugin to look for the resource in
      */
     def resource = { attrs ->
-        if(pageScope.pluginContextPath) {
+        if (pageScope.pluginContextPath) {
             attrs.pluginContextPath = pageScope.pluginContextPath
         }
-        out << (resourceService ? r.resource(attrs) : linkGenerator.resource(attrs))
+        // Use resources plugin if present, but only if file is specified - resources require files
+        // But users often need to link to a folder just using dir
+        out << ((resourceService && attrs.file) ? r.resource(attrs) : linkGenerator.resource(attrs))
+    }
+
+    /**
+     * Render an img tag with src set to a static resource
+     * @attr dir Optional name of resource directory, defaults to "images"
+     * @attr file Name of resource file (optional if uri specified)
+     * @attr plugin Optional the name of the grails plugin if the resource is not part of the application
+     * @attr uri Optional app-relative URI path of the resource if not using dir/file attributes - only if Resources plugin is in use
+     */
+    def img = { attrs ->
+        if (!attrs.uri && !attrs.dir) {
+            attrs.dir = "images"
+        }
+        if (resourceService) {
+            out << r.img(attrs)
+        } else {
+            def uri = attrs.uri ?: resource(attrs)
+
+            def excludes = ['dir', 'uri', 'file', 'plugin']
+            def entries = attrs.findAll { !(it.key in excludes) }.collect { "$it.key=\"$it.value\""}
+            out << "<img src=\"${uri.encodeAsHTML()}\" ${entries.join(' ')} />"
+        }
     }
 
     /**
@@ -159,7 +191,6 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * @attr event Webflow _eventId parameter
      * @attr elementId DOM element id
      */
-
     def link = { attrs, body ->
 
         def writer = getOut()
@@ -179,15 +210,91 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
         }
 
         def remainingKeys = attrs.keySet() - LinkGenerator.LINK_ATTRIBUTES
-        for(key in remainingKeys) {
+        for (key in remainingKeys) {
             writer << " $key=\"${attrs[key]?.encodeAsHTML()}\""
         }
-        for(entry in linkAttrs) {
+        for (entry in linkAttrs) {
             writer << " ${entry.key}=\"${entry.value?.encodeAsHTML()}\""
         }
         writer << '>'
         writer << body()
         writer << '</a>'
+    }
+
+    static attrsToString(Map attrs) {
+        // Output any remaining user-specified attributes
+        final resultingAttributes = attrs.entrySet().collect { "$it.key=\"${it.value.encodeAsHTML()}\""}.join(' ')
+        return " $resultingAttributes"
+    }
+
+    static LINK_WRITERS = [
+        js: { url, constants, attrs ->
+           return "<script src=\"${url}\"${getAttributesToRender(constants, attrs)}></script>"
+        },
+
+        link: { url, constants, attrs ->
+           return "<link href=\"${url}\"${getAttributesToRender(constants, attrs)}/>"
+        }
+    ]
+
+    static getAttributesToRender(constants, attrs) {
+        return "${constants ? attrsToString(constants) : ''}${attrs ? attrsToString(attrs) : ''}"
+    }
+
+    static SUPPORTED_TYPES = [
+        css:[type:"text/css", rel:'stylesheet', media:'screen, projector'],
+        js:[type:'text/javascript', writer:'js'],
+
+        gif:[rel:'shortcut icon'],
+        jpg:[rel:'shortcut icon'],
+        png:[rel:'shortcut icon'],
+        ico:[rel:'shortcut icon'],
+        appleicon:[rel:'apple-touch-icon']
+
+        // @todo add feed link types here too
+    ]
+
+    /**
+     * Render the appropriate kind of external link for use in <head> based on the type of the URI.
+     * For JS will render <script> tags, for CSS will render <link> with the correct rel, and so on for icons.
+     * @attr uri
+     * @attr dir
+     * @attr file
+     * @attr plugin
+     * @attr type
+     */
+    def external = { attrs ->
+        if (!attrs.uri) {
+            attrs.uri = g.resource(attrs).toString()
+        }
+        renderResourceLink(attrs)
+    }
+
+    /**
+     *
+     * @attr uri
+     * @attr type
+     */
+    protected renderResourceLink(attrs) {
+        def uri = attrs.remove('uri')
+        def type = attrs.remove('type')
+        if (!type) {
+            type = FilenameUtils.getExtension(uri)
+        }
+
+        def typeInfo = SUPPORTED_TYPES[type]?.clone()
+        if (!typeInfo) {
+            throwTagError "I can't work out the type of ${uri} with type [${type}]. Please check the URL, resource definition or specify [type] attribute"
+        }
+
+        def writerName = typeInfo.remove('writer')
+        def writer = LINK_WRITERS[writerName ?: 'link']
+
+        // Allow attrs to overwrite any constants
+        attrs.each { typeInfo.remove(it.key) }
+
+        out << writer(uri, typeInfo, attrs)
+        out << "\r\n"
     }
 
     /**
@@ -196,6 +303,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * rather than a tag eg.<br/>
      *
      * &lt;a href="${createLink(action:'list')}"&gt;List&lt;/a&gt;
+     *
+     * @emptyTag
      * 
      * @attr controller The name of the controller to use in the link, if not specified the current controller will be linked
      * @attr action The name of the action to use in the link, if not specified the default action will be linked
@@ -267,6 +376,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
      * Uses the Groovy JDK join method to concatenate the toString() representation of each item
      * in this collection with the given separator.
      *
+     * @emptyTag
+     * 
      * @attr REQUIRED in The collection to iterate over
      * @attr delimiter The value of the delimiter to use during the join. If no delimiter is specified then ", " (a comma followed by a space) will be used as the delimiter.
      */
@@ -283,6 +394,8 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
     /**
      * Output application metadata that is loaded from application.properties.
      *
+     * @emptyTag
+     * 
      * @attr name REQUIRED the metadata key
      */
     def meta = { attrs ->
@@ -291,5 +404,4 @@ class ApplicationTagLib implements ApplicationContextAware, InitializingBean, Gr
         }
         out << Metadata.current[attrs.name]
     }
-
 }

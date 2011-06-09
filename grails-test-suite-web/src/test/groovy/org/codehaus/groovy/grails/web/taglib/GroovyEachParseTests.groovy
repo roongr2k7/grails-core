@@ -14,16 +14,12 @@ class GroovyEachParseTests extends ParseTests {
 class myTest extends GroovyPage {
 public String getGroovyPageFileName() { "myTest" }
 public Object run() {
-def params = binding.params
-def request = binding.request
-def flash = binding.flash
-def response = binding.response
-def out = binding.out
-def codecOut = binding.codecOut
-registerSitemeshPreprocessMode(request)
+def out = getOut()
+def codecOut = getCodecOut()
+registerSitemeshPreprocessMode()
 
 printHtmlPart(0)
-evaluate('"blah"', 2, it) { return "blah" }.each { t ->
+for( t in evaluate('"blah"', 2, it) { return "blah" } ) {
 printHtmlPart(0)
 }
 printHtmlPart(0)
@@ -40,16 +36,12 @@ printHtmlPart(0)
 class myTest extends GroovyPage {
 public String getGroovyPageFileName() { "myTest" }
 public Object run() {
-def params = binding.params
-def request = binding.request
-def flash = binding.flash
-def response = binding.response
-def out = binding.out
-def codecOut = binding.codecOut
-registerSitemeshPreprocessMode(request)
+def out = getOut()
+def codecOut = getCodecOut()
+registerSitemeshPreprocessMode()
 
 printHtmlPart(0)
-evaluate('"blah"', 1, it) { return "blah" }.each { t ->
+for( t in evaluate('"blah"', 1, it) { return "blah" } ) {
 }
 }""" + GSP_FOOTER
 ),trimAndRemoveCR(output.toString()))
@@ -66,17 +58,17 @@ evaluate('"blah"', 1, it) { return "blah" }.each { t ->
 class myTest2 extends GroovyPage {
 public String getGroovyPageFileName() { "myTest2" }
 public Object run() {
-def params = binding.params
-def request = binding.request
-def flash = binding.flash
-def response = binding.response
-def out = binding.out
-def codecOut = binding.codecOut
-registerSitemeshPreprocessMode(request)
+def out = getOut()
+def codecOut = getCodecOut()
+registerSitemeshPreprocessMode()
 
 printHtmlPart(0)
-evaluate('"blah"', 2, it) { return "blah" }.eachWithIndex { t,i ->
+FOR:{
+int i = 0
+for( t in evaluate('"blah"', 2, it) { return "blah" } ) {
 printHtmlPart(0)
+i++
+}
 }
 printHtmlPart(0)
 }""" + GSP_FOOTER

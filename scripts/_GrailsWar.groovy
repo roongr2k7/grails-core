@@ -63,9 +63,9 @@ defaultWarDependencies = { antBuilder ->
         }
     }
     else {
-		def dependencies = grailsSettings.runtimeDependencies
-        if(dependencies) {
-            for(File f in dependencies) {
+        def dependencies = grailsSettings.runtimeDependencies
+        if (dependencies) {
+            for (File f in dependencies) {
                 fileset(dir: f.parent, includes: f.name)
             }
         }
@@ -81,7 +81,7 @@ target(checkInPlacePlugins: "Perform a check whether inplace plugins have been p
     if (inlinePluginDirs) {
         for (pluginDir in inlinePluginDirs) {
             def descriptor = pluginSettings.getPluginDescriptor(pluginDir)
-            println "Generating plugin.xml for inline plugin at location ${pluginDir}"
+            console.updateStatus "Generating plugin.xml for inline plugin"
             generatePluginXml(descriptor.file,false)
         }
     }
@@ -198,17 +198,17 @@ target (war: "The implementation target") {
         pluginInfos = pluginInfos.findAll { GrailsPluginInfo info ->
             def pluginName = info.name
             def descriptor = dm.getPluginDependencyDescriptor(pluginName)
-            if(descriptor) {
+            if (descriptor) {
                 def configs = ["runtime", "compile"]
                 if (grailsEnv == "test") {
-                    configs << "test" 
+                    configs << "test"
                 }
-                
+
                 def i = configs.any { descriptor.isSupportedInConfiguration(it) }
                 i != null ? i : true
-            }else{
-		        true
-	        }
+            } else {
+                true
+            }
         }
 
         if (includeJars) {

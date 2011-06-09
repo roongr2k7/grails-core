@@ -4,12 +4,15 @@ import grails.util.GrailsUtil
 
 import javax.servlet.http.Cookie
 
+import groovy.mock.interceptor.StubFor
+
 import org.codehaus.groovy.grails.commons.ConfigurationHolder
 import org.codehaus.groovy.grails.plugins.web.taglib.ApplicationTagLib
 import org.codehaus.groovy.grails.web.pages.GroovyPageBinding
 import org.codehaus.groovy.grails.web.servlet.GrailsApplicationAttributes
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 
+import org.codehaus.groovy.grails.commons.TagLibArtefactHandler
 import org.springframework.mock.web.MockHttpServletResponse
 
 class ApplicationTagLibTests extends AbstractGrailsTagTests {
@@ -51,20 +54,57 @@ class ApplicationTagLibTests extends AbstractGrailsTagTests {
         assertOutputEquals '/test/images/foo.jpg', template
     }
 
+    def replaceMetaClass(Class c) {
+        def old = c.metaClass
+
+        // Create a new EMC for the class and attach it.
+        def emc = new ExpandoMetaClass(c, true, true)
+        emc.initialize()
+        GroovySystem.metaClassRegistry.setMetaClass(c, emc)
+        
+        return old
+    }
+    
+    void testResourceTagDirOnly() {
+        request.contextPath = '/test'
+        def template = '${resource(dir:"jquery")}'
+        assertOutputEquals '/test/jquery', template
+    }
+
+    void testResourceTagDirOnlyWithResourcesHooks() {
+        request.contextPath = '/test'
+        def template = '${resource(dir:"jquery")}'
+
+        def oldMC = replaceMetaClass(ApplicationTagLib)
+
+        // Dummy r.resource impl
+        def mockRes = [
+            resource: { attrs -> "WRONG"}
+        ]
+        def tagLibrary = grailsApplication.getArtefactForFeature(TagLibArtefactHandler.TYPE, "g:resource")
+        tagLibrary.clazz.metaClass.getR = { -> mockRes }
+        tagLibrary.clazz.metaClass.getResourceService = { -> [something:'value'] }
+        try {
+            assertOutputEquals '/test/jquery', template
+        } finally {
+            ApplicationTagLib.metaClass = oldMC
+        }
+    }
+
     void testUseJessionIdWithCreateLink() {
         def response = new JsessionIdMockHttpServletResponse()
         ApplicationTagLib.metaClass.getResponse = {-> response}
         def tagLibBean = appCtx.getBean("org.codehaus.groovy.grails.plugins.web.taglib.ApplicationTagLib")
         ga.config.grails.views.enable.jsessionid=true
         tagLibBean.afterPropertiesSet()
-        assertTrue( tagLibBean.@useJsessionId )
+        assertTrue(tagLibBean.@useJsessionId)
 
         def template = '<g:createLink controller="foo" action="test" />'
         assertOutputEquals "/foo/test;jsessionid=test", template
 
         ga.config.grails.views.enable.jsessionid=false
         tagLibBean.afterPropertiesSet()
-        assertFalse( tagLibBean.@useJsessionId )
+        assertFalse(tagLibBean.@useJsessionId)
         assertOutputEquals "/foo/test", template
     }
 
@@ -275,8 +315,9 @@ class ApplicationTagLibTests extends AbstractGrailsTagTests {
     void testAbsoluteWithContextPathAndNullConfig() {
         ConfigurationHolder.config = null
         request.contextPath = "/foo"
+        request.serverPort = 8080
         def template = '<g:createLink action="testAction" controller="testController" absolute="true" />'
-        assertOutputEquals 'http://localhost:8080/testController/testAction', template
+        assertOutputEquals 'http://localhost:8080/foo/testController/testAction', template
     }
 
     /**
@@ -291,6 +332,7 @@ class ApplicationTagLibTests extends AbstractGrailsTagTests {
 
     void testCreateLinkWithAbsolute() {
         def template = '<g:createLink absolute="true" action="testAction" controller="testController" />'
+        request.serverPort = 8080
         assertOutputEquals 'http://localhost:8080/testController/testAction', template
     }
 
@@ -321,6 +363,29 @@ class ApplicationTagLibTests extends AbstractGrailsTagTests {
         def template = /<g:join in="['Bruce', 'Adrian', 'Dave', 'Nicko', 'Steve']"\/>/
         assertOutputEquals 'Bruce, Adrian, Dave, Nicko, Steve', template
     }
+
+    void testImg() {
+        def template = '<g:img dir="images" file="logo.png" width="100" height="200"/>'
+        assertOutputEquals '<img src="/images/logo.png" width="100" height="200" />', template
+
+        template = '<g:img file="logo.png" width="100" height="200"/>'
+        assertOutputEquals '<img src="/images/logo.png" width="100" height="200" />', template
+    }
+
+    void testExternal() {
+        def template = '<g:external uri="/js/main.js"/>'
+        assertOutputEquals '<script src="/js/main.js" type="text/javascript"></script>\r\n', template
+
+        template = '<g:external uri="/css/style.css"/>'
+        assertOutputEquals '<link href="/css/style.css" type="text/css" rel="stylesheet" media="screen, projector"/>\r\n', template
+
+        template = '<g:external uri="/css/print.css" media="print"/>'
+        assertOutputEquals '<link href="/css/print.css" type="text/css" rel="stylesheet" media="print"/>\r\n', template
+
+        template = '<g:external uri="/images/icons/iphone-icon.png" type="appleicon"/>'
+        assertOutputEquals '<link href="/images/icons/iphone-icon.png" rel="apple-touch-icon"/>\r\n', template
+    }
+
 }
 
 class JsessionIdMockHttpServletResponse extends MockHttpServletResponse {

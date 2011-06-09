@@ -15,7 +15,6 @@
 package org.codehaus.groovy.grails.web.mapping;
 
 import grails.util.GrailsNameUtils;
-import groovy.util.ConfigObject;
 
 import java.util.Collections;
 import java.util.Enumeration;
@@ -51,7 +50,7 @@ public class DefaultUrlMappingInfo extends AbstractUrlMappingInfo implements Url
     private UrlMappingData urlData;
     private Object viewName;
     private ServletContext servletContext;
-    private static final String SETTING_GRAILS_WEB_DISABLE_MULTIPART = "grails.web.disable.multipart";
+    private static final String SETTING_GRAILS_WEB_DISABLE_MULTIPART = "grails.disableCommonsMultipart";
     private boolean parsingRequest;
     private Object uri;
 
@@ -100,7 +99,7 @@ public class DefaultUrlMappingInfo extends AbstractUrlMappingInfo implements Url
     }
 
     public boolean isParsingRequest() {
-        return this.parsingRequest;
+        return parsingRequest;
     }
 
     public void setParsingRequest(boolean parsingRequest) {
@@ -178,9 +177,8 @@ public class DefaultUrlMappingInfo extends AbstractUrlMappingInfo implements Url
 
     private boolean getMultipartDisabled() {
         GrailsApplication app = WebUtils.lookupApplication(servletContext);
-        ConfigObject config = app.getConfig();
+        Object disableMultipart = app.getFlatConfig().get(SETTING_GRAILS_WEB_DISABLE_MULTIPART);
         boolean disabled = false;
-        Object disableMultipart = config.get(SETTING_GRAILS_WEB_DISABLE_MULTIPART);
         if (disableMultipart instanceof Boolean) {
             disabled = ((Boolean) disableMultipart).booleanValue();
         }

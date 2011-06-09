@@ -155,7 +155,6 @@ public class GrailsDispatcherServlet extends DispatcherServlet {
                 GrailsConfigUtils.executeGrailsBootstraps(application, webContext, getServletContext());
             }
             catch (Exception e) {
-                GrailsUtil.deepSanitize(e);
                 if (e instanceof BeansException) {
                     throw (BeansException)e;
                 }
@@ -177,7 +176,7 @@ public class GrailsDispatcherServlet extends DispatcherServlet {
      */
     protected HandlerInterceptor[] establishInterceptors(WebApplicationContext webContext) {
         String[] interceptorNames = webContext.getBeanNamesForType(HandlerInterceptor.class);
-        String[] webRequestInterceptors = webContext.getBeanNamesForType( WebRequestInterceptor.class);
+        String[] webRequestInterceptors = webContext.getBeanNamesForType(WebRequestInterceptor.class);
         @SuppressWarnings("hiding")
         HandlerInterceptor[] interceptors = new HandlerInterceptor[interceptorNames.length + webRequestInterceptors.length];
 
@@ -305,7 +304,6 @@ public class GrailsDispatcherServlet extends DispatcherServlet {
                 }
             }
             catch (ModelAndViewDefiningException ex) {
-                GrailsUtil.deepSanitize(ex);
                 handlerException = ex;
                 if (logger.isDebugEnabled()) {
                     logger.debug("ModelAndViewDefiningException encountered", ex);
@@ -313,7 +311,6 @@ public class GrailsDispatcherServlet extends DispatcherServlet {
                 mv = ex.getModelAndView();
             }
             catch (Exception ex) {
-                GrailsUtil.deepSanitize(ex);
                 handlerException = ex;
                 Object handler = (mappedHandler != null ? mappedHandler.getHandler() : null);
                 mv = processHandlerException(request, response, handler, ex);

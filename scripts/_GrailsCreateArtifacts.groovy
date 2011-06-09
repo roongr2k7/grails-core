@@ -30,9 +30,9 @@ createArtifact = { Map args = [:] ->
     def suffix = args["suffix"]
 
     def type = args["type"]
-	if(type) {
-		lastType = type		
-	}
+    if (type) {
+        lastType = type
+    }
 
     def artifactPath = args["path"]
 
@@ -69,12 +69,12 @@ createArtifact = { Map args = [:] ->
     artifactFile = "${basedir}/${artifactPath}/${pkgPath}${className}${suffix}.groovy"
 
     if (new File(artifactFile).exists()) {
-        if (!confirmInput("${type} ${className}${suffix}.groovy already exists. Overwrite? [y/n]","${name}.${suffix}.overwrite")) {
+        if (!confirmInput("${type} ${className}${suffix}.groovy already exists. Overwrite?","${name}.${suffix}.overwrite")) {
             return
         }
     }
 
-	def templatePath = args["templatePath"] ?: 'templates/artifacts'
+    def templatePath = args["templatePath"] ?: 'templates/artifacts'
     // first check for presence of template in application
     templateFile = new FileSystemResource("${basedir}/src/${templatePath}/${type ?: lastType}.groovy")
     if (!templateFile.exists()) {
@@ -130,9 +130,7 @@ createUnitTest = { Map args = [:] ->
 
 promptForName = { Map args = [:] ->
     if (!argsMap["params"]) {
-        def oldOut = System.out
-        ant.input(addProperty: "artifact.name", message: "${args["type"]} name not specified. Please enter:")
-        argsMap["params"] << ant.antProject.properties."artifact.name"
+        argsMap["params"] << console.userInput("${args["type"]} name not specified. Please enter:")
     }
 }
 

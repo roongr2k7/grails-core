@@ -14,11 +14,9 @@
  */
 package org.codehaus.groovy.grails.cli;
 
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
+import grails.build.logging.GrailsConsole;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.PrintStream;
 
 /**
@@ -29,14 +27,23 @@ import java.io.PrintStream;
  */
 public class CommandLineHelper {
 
-    private PrintStream out = System.out;
+    // Use static variables so that feature uses of CommandLineHelper use those provided by the constructor
+    // bit of a hack, but don't see many other options
 
     public CommandLineHelper() {
         // default
     }
 
+    /**
+     * @deprecated Use no-args constructor
+     */
     public CommandLineHelper(PrintStream out) {
-        this.out = out;
+    }
+
+    /**
+     * @deprecated Use no-args constructor
+     */
+    public CommandLineHelper(InputStream input, PrintStream out) {
     }
 
     /**
@@ -48,7 +55,7 @@ public class CommandLineHelper {
      * string.
      */
     public String userInput(String message) {
-        return userInput(message, null);
+        return GrailsConsole.getInstance().userInput(message);
     }
     
     protected void showInputMessage(String message, String responses) {
@@ -82,37 +89,6 @@ public class CommandLineHelper {
      * if the user never entered a valid string.
      */
     public String userInput(String message, String[] validResponses) {
-        String responsesString = null;
-        if (validResponses != null) {
-            responsesString = DefaultGroovyMethods.join(validResponses, ",");
-        }
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-
-        for (int it = 0; it < 3; it++) {
-            showInputMessage(message, responsesString);
-
-            try {
-                String line = reader.readLine();
-
-                if (validResponses == null) return line;
-
-                for (String validResponse : validResponses) {
-                    if (line != null && line.equalsIgnoreCase(validResponse)) {
-                        return line;
-                    }
-                }
-
-                printMessage("Invalid option '" + line + "' - must be one of: [" + responsesString + "]");
-            }
-            catch (IOException ex) {
-                printMessage("ERROR: Could not read System.in due to:" + ex.getMessage() );
-                return null;
-            }
-        }
-
-        // No valid response given.
-        printMessage("No valid response entered - giving up asking.");
-        return null;
+        return GrailsConsole.getInstance().userInput(message, validResponses);
     }
 }

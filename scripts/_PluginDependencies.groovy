@@ -20,8 +20,8 @@ import grails.util.GrailsUtil
 import grails.util.PluginBuildSettings
 
 import groovy.xml.MarkupBuilder
-import groovyx.gpars.Parallelizer;
 
+import org.codehaus.groovy.grails.compiler.support.*
 import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.control.CompilationUnit
 import org.codehaus.groovy.grails.commons.DefaultGrailsApplication
@@ -40,6 +40,7 @@ import org.codehaus.groovy.grails.plugins.ProfilingGrailsPluginManager
 import org.springframework.core.io.Resource
 import org.codehaus.groovy.grails.plugins.GrailsPluginUtils
 import org.codehaus.groovy.grails.plugins.GrailsPlugin
+import org.codehaus.groovy.grails.plugins.publishing.PluginDescriptorGenerator
 
 /**
  * Plugin stuff. If included, must be included after "_ClasspathAndEvents".
@@ -50,8 +51,6 @@ import org.codehaus.groovy.grails.plugins.GrailsPlugin
  */
 if (getBinding().variables.containsKey("_plugin_dependencies_called")) return
 _plugin_dependencies_called = true
-
-
 
 includeTargets << grailsScript("_GrailsClean")
 includeTargets << grailsScript("_GrailsArgParsing")
@@ -66,10 +65,10 @@ pluginsBase = "${grailsWorkDir}/plugins".toString().replaceAll('\\\\','/')
 target(resolveDependencies:"Resolve plugin dependencies") {
     depends(parseArguments, initInplacePlugins)
 
-	profile("Resolving plugin dependencies") {
-		def installEngine = createPluginInstallEngine()
-		installEngine.resolvePluginDependencies()	
-	}
+    profile("Resolving plugin dependencies") {
+        def installEngine = createPluginInstallEngine()
+        installEngine.resolvePluginDependencies()
+    }
 }
 
 target(initInplacePlugins: "Generates the plugin.xml descriptors for inplace plugins.") {
@@ -87,7 +86,7 @@ target(initInplacePlugins: "Generates the plugin.xml descriptors for inplace plu
 generatePluginXml = { File descriptor, boolean compilePlugin = true ->
     def pluginBaseDir = descriptor.parentFile
     def pluginProps = pluginSettings.getPluginInfo(pluginBaseDir.absolutePath)
-	def plugin
+    def plugin
     pluginGrailsVersion = "${GrailsUtil.grailsVersion} > *"
 
     if (compilePlugin) {
@@ -101,7 +100,7 @@ generatePluginXml = { File descriptor, boolean compilePlugin = true ->
 
             pluginClass = gcl.parseClass(descriptor)
             plugin = pluginClass.newInstance()
-			pluginProps = plugin.properties
+            pluginProps = plugin.properties
         }
         catch (Throwable t) {
             event("StatusError", [t.message])
@@ -114,122 +113,119 @@ generatePluginXml = { File descriptor, boolean compilePlugin = true ->
        if (pluginProps["grailsVersion"]) {
           pluginGrailsVersion = pluginProps["grailsVersion"]
        }
-    }	
+    }
     def resourceList = pluginSettings.getArtefactResourcesForOne(descriptor.parentFile.absolutePath)
     // Work out what the name of the plugin is from the name of the descriptor file.
     pluginName = GrailsNameUtils.getPluginName(descriptor.name)
-
 
     // Remove the existing 'plugin.xml' if there is one.
     def pluginXml = new File(pluginBaseDir, "plugin.xml")
     pluginXml.delete()
 
     // Use MarkupBuilder with indenting to generate the file.
-	pluginXml.withWriter { writer ->
-		def generator = new org.codehaus.groovy.grails.plugins.publishing.PluginDescriptorGenerator(pluginName, resourceList)
+    pluginXml.withWriter { writer ->
+        def generator = new PluginDescriptorGenerator(pluginName, resourceList)
 
-		pluginProps["type"] = descriptor.name - '.groovy'
-		generator.generatePluginXml(pluginProps, writer)
+        pluginProps["type"] = descriptor.name - '.groovy'
+        generator.generatePluginXml(pluginProps, writer)
 
-	    return compilePlugin ? plugin : pluginProps		
-	}
+        return compilePlugin ? plugin : pluginProps
+    }
 }
 
 target(loadPluginsAsync:"Asynchronously loads plugins") {
-	Thread.start {
-		loadPlugins()
-	}
+    Thread.start {
+        loadPlugins()
+    }
 }
 target(loadPlugins:"Loads Grails' plugins") {
     if (!PluginManagerHolder.pluginManager) { // plugin manager already loaded?
-		PluginManagerHolder.inCreation = true
-		compConfig.setTargetDirectory(pluginClassesDir)
-		def unit = new CompilationUnit (compConfig , null , new GroovyClassLoader(classLoader))
-		def pluginFiles = pluginSettings.pluginDescriptors
+        PluginManagerHolder.inCreation = true
+        compConfig.setTargetDirectory(pluginClassesDir)
+        def unit = new CompilationUnit (compConfig , null , new GroovyClassLoader(classLoader))
+        def pluginFiles = pluginSettings.pluginDescriptors
 
-		for (plugin in pluginFiles) {
-			def pluginFile = plugin.file
-			def className = pluginFile.name - '.groovy'
-			def classFile = new File("${classesDirPath}/${className}.class")
+        for (plugin in pluginFiles) {
+            def pluginFile = plugin.file
+            def className = pluginFile.name - '.groovy'
+            def classFile = new File("${classesDirPath}/${className}.class")
 
-			if (pluginFile.lastModified() > classFile.lastModified()) {
-				unit.addSource (pluginFile)
-			}
-		}
+            if (pluginFile.lastModified() > classFile.lastModified()) {
+                unit.addSource (pluginFile)
+            }
+        }
 
-		try {
-			profile("compiling plugins") {
-				unit.compile()
-			}
+        try {
+            profile("compiling plugins") {
+                unit.compile()
+            }
 
-			def application
-			def pluginClasses = []
-			profile("construct plugin manager with ${pluginFiles.inspect()}") {
-				for (plugin in pluginFiles) {
-					def className = plugin.file.name - '.groovy'
-					pluginClasses << classLoader.loadClass(className)
-				}
+            def application
+            def pluginClasses = []
+            profile("construct plugin manager with ${pluginFiles.inspect()}") {
+                for (plugin in pluginFiles) {
+                    def className = plugin.file.name - '.groovy'
+                    pluginClasses << classLoader.loadClass(className)
+                }
 
-				profile("creating plugin manager with classes ${pluginClasses}") {
-					if (grailsApp == null) {
-						grailsApp = new DefaultGrailsApplication(new Class[0], new GroovyClassLoader(classLoader))
-						ApplicationHolder.application = grailsApp
-					}
-					
-					if(enableProfile) {
-						pluginManager = new ProfilingGrailsPluginManager(pluginClasses as Class[], grailsApp)
-					}
-					else {
-						pluginManager = new DefaultGrailsPluginManager(pluginClasses as Class[], grailsApp)
-					}
-					
+                profile("creating plugin manager with classes ${pluginClasses}") {
+                    if (grailsApp == null) {
+                        grailsApp = new DefaultGrailsApplication(new Class[0], new GroovyClassLoader(classLoader))
+                        ApplicationHolder.application = grailsApp
+                    }
 
-					
-					pluginSettings.pluginManager = pluginManager
-				}
-			}
-			profile("loading plugins") {
-				event("PluginLoadStart", [pluginManager])
-				pluginManager.loadPlugins()
-				PluginManagerHolder.setPluginManager(pluginManager)
-				def baseDescriptor = pluginSettings.basePluginDescriptor
-				if (baseDescriptor) {
-					def baseName = FilenameUtils.getBaseName(baseDescriptor.filename)
-					def plugin = pluginManager.getGrailsPluginForClassName(baseName)
-					if (plugin) {
-						plugin.basePlugin = true
-					}
-				}
-				if (pluginManager.failedLoadPlugins) {
-					event("StatusError", ["Error: The following plugins failed to load due to missing dependencies: ${pluginManager.failedLoadPlugins*.name}"])
-					for (p in pluginManager.failedLoadPlugins) {
-						println "- Plugin: $p.name"
-						println "   - Dependencies:"
-						for(depName in p.dependencyNames) {
-							GrailsPlugin depInfo = pluginManager.getGrailsPlugin(depName)
-							def specifiedVersion = p.getDependentVersion(depName)
-							def invalid = depInfo && GrailsPluginUtils.isValidVersion(depInfo.version, specifiedVersion ) ? '' : '[INVALID]'
-							println "       ${invalid ? '!' :'-' } ${depName} (Required: ${specifiedVersion}, Found: ${depInfo?.version ?: 'Not Installed'}) ${invalid}"
-						}
+                    if (enableProfile) {
+                        pluginManager = new ProfilingGrailsPluginManager(pluginClasses as Class[], grailsApp)
+                    }
+                    else {
+                        pluginManager = new DefaultGrailsPluginManager(pluginClasses as Class[], grailsApp)
+                    }
 
-					}
-					exit(1)
-				}
+                    pluginSettings.pluginManager = pluginManager
+                }
+            }
+            profile("loading plugins") {
+                event("PluginLoadStart", [pluginManager])
+                pluginManager.loadPlugins()
+                PluginManagerHolder.setPluginManager(pluginManager)
+                def baseDescriptor = pluginSettings.basePluginDescriptor
+                if (baseDescriptor) {
+                    def baseName = FilenameUtils.getBaseName(baseDescriptor.filename)
+                    def plugin = pluginManager.getGrailsPluginForClassName(baseName)
+                    if (plugin) {
+                        plugin.basePlugin = true
+                    }
+                }
+                if (pluginManager.failedLoadPlugins) {
+                    event("StatusError", ["Error: The following plugins failed to load due to missing dependencies: ${pluginManager.failedLoadPlugins*.name}"])
+                    for (p in pluginManager.failedLoadPlugins) {
+                        println "- Plugin: $p.name"
+                        println "   - Dependencies:"
+                        for (depName in p.dependencyNames) {
+                            GrailsPlugin depInfo = pluginManager.getGrailsPlugin(depName)
+                            def specifiedVersion = p.getDependentVersion(depName)
+                            def invalid = depInfo && GrailsPluginUtils.isValidVersion(depInfo.version, specifiedVersion) ? '' : '[INVALID]'
+                            println "       ${invalid ? '!' :'-' } ${depName} (Required: ${specifiedVersion}, Found: ${depInfo?.version ?: 'Not Installed'}) ${invalid}"
+                        }
 
-				pluginManager.doArtefactConfiguration()
-				grailsApp.initialise()
+                    }
+                    exit(1)
+                }
 
-/*				if(org.springframework.util.ClassUtils.isPresent("com.springsource.loaded.Plugins", rootLoader)) {
-					org.codehaus.groovy.grails.cli.agent.GrailsPluginManagerReloadPlugin.register()
-				}*/
-				event("PluginLoadEnd", [pluginManager])
-			}
-		}
-		catch (Exception e) {
-			GrailsUtil.deepSanitize(e).printStackTrace()
-			event("StatusFinal", [ "Error loading plugin manager: " + e.message ])
-			exit(1)
-		}
+                pluginManager.doArtefactConfiguration()
+                grailsApp.initialise()
+
+/*                if (org.springframework.util.ClassUtils.isPresent("com.springsource.loaded.Plugins", rootLoader)) {
+                    org.codehaus.groovy.grails.cli.agent.GrailsPluginManagerReloadPlugin.register()
+                }*/
+                event("PluginLoadEnd", [pluginManager])
+            }
+        }
+        catch (Exception e) {
+            GrailsUtil.deepSanitize(e).printStackTrace()
+            event("StatusFinal", [ "Error loading plugin manager: " + e.message ])
+            exit(1)
+        }
 
 
     }
@@ -260,11 +256,16 @@ readAllPluginXmlMetadata = {->
  */
 runPluginScript = { File scriptFile, fullPluginName, msg ->
     if (scriptFile.exists()) {
-        event("StatusUpdate", ["Executing ${fullPluginName} plugin $msg"])
         // instrumenting plugin scripts adding 'pluginBasedir' variable
-        def instrumentedInstallScript = "def pluginBasedir = '${pluginsHome}/${fullPluginName}'\n".toString().replaceAll('\\\\','/') + scriptFile.text
-        // we are using text form of script here to prevent Gant caching
-        includeTargets << instrumentedInstallScript
+		try {
+	        def instrumentedInstallScript = "def pluginBasedir = '${pluginsHome}/${fullPluginName}'\n".toString().replaceAll('\\\\','/') + scriptFile.text
+	        // we are using text form of script here to prevent Gant caching
+	        includeTargets << instrumentedInstallScript			
+		}
+		catch(e) {
+			console.error "Error executing plugin $fullPluginName script: $scriptFile"
+			exit 1
+		}		
     }
 }
 
@@ -327,10 +328,11 @@ private PluginInstallEngine createPluginInstallEngine() {
     return pluginInstallEngine
 }
 
-protected GrailsPluginManager resetClasspath() {
+protected void resetClasspath() {
     classpathSet = false
     classpath()
     PluginManagerHolder.pluginManager = null
+    GrailsResourceLoaderHolder.resourceLoader = new GrailsResourceLoader(pluginSettings.getArtefactResources())
 }
 
 doInstallPluginFromURL = { URL url ->
@@ -373,4 +375,3 @@ private withPluginInstall(Closure callable) {
         exit(1)
     }
 }
-

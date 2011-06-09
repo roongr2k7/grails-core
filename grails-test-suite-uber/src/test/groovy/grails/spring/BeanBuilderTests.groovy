@@ -15,12 +15,15 @@
  */
 package grails.spring
 
+import org.codehaus.groovy.grails.plugins.GrailsPluginManager;
+import org.codehaus.groovy.grails.plugins.PluginManagerHolder;
 import org.springframework.aop.SpringProxy
 import org.springframework.beans.factory.BeanIsAbstractException;
 import org.springframework.beans.factory.ObjectFactory
 import org.springframework.beans.factory.config.Scope
 import org.springframework.context.ApplicationContext
 import org.springframework.context.support.GenericApplicationContext
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.mock.jndi.SimpleNamingContextBuilder
 import org.springframework.stereotype.Component
 
@@ -29,6 +32,12 @@ import org.springframework.stereotype.Component
  * @since 0.4
  */
 class BeanBuilderTests extends GroovyTestCase {
+
+    @Override
+    protected void setUp() {
+        super.setUp()
+        PluginManagerHolder.setPluginManager null
+    }
 
     void testImportSpringXml() {
         def bb = new BeanBuilder()
@@ -87,14 +96,14 @@ class BeanBuilderTests extends GroovyTestCase {
         bb.beans {
             xmlns grailsContext:"http://grails.org/schema/context"
 
-            grailsContext.'component-scan'( 'base-package' :"**" )
+            grailsContext.'component-scan'('base-package' :"**")
         }
 
         def appCtx = bb.createApplicationContext()
 
         def p = appCtx.getBean("person")
 
-        assertTrue( p instanceof AdvisedPerson )
+        assertTrue(p instanceof AdvisedPerson)
         assertNotNull p
     }
 
@@ -112,17 +121,16 @@ class BeanBuilderTests extends GroovyTestCase {
 
             aop {
                 config("proxy-target-class":true) {
-                    aspect( id:"sendBirthdayCard",ref:"birthdayCardSenderAspect" ) {
+                    aspect(id:"sendBirthdayCard",ref:"birthdayCardSenderAspect") {
                         after method:"onBirthday", pointcut: "execution(void grails.spring.AdvisedPerson.birthday()) and this(person)"
                     }
                 }
             }
         }
 
-
         def appCtx = bb.createApplicationContext()
         def fred = appCtx.getBean("fred")
-        assertTrue (fred instanceof SpringProxy )
+        assertTrue (fred instanceof SpringProxy)
 
         fred.birthday()
 
@@ -212,7 +220,7 @@ class BeanBuilderTests extends GroovyTestCase {
             birthdayCardSenderAspect(BirthdayCardSender)
 
             aop.config("proxy-target-class":true) {
-                aspect( id:"sendBirthdayCard",ref:"birthdayCardSenderAspect" ) {
+                aspect(id:"sendBirthdayCard",ref:"birthdayCardSenderAspect") {
                     after method:"onBirthday", pointcut: "execution(void grails.spring.AdvisedPerson.birthday()) and this(person)"
                 }
             }
@@ -220,7 +228,7 @@ class BeanBuilderTests extends GroovyTestCase {
 
         def appCtx = bb.createApplicationContext()
         def fred = appCtx.getBean("fred")
-        assertTrue (fred instanceof SpringProxy )
+        assertTrue (fred instanceof SpringProxy)
 
         fred.birthday()
 
@@ -245,7 +253,6 @@ class BeanBuilderTests extends GroovyTestCase {
         }
 
         appCtx = bb.createApplicationContext()
-
 
         assertNotNull appCtx.getBean("scopedList")
         assertNotNull appCtx.getBean("scopedList").size()
@@ -711,7 +718,7 @@ class BeanBuilderTests extends GroovyTestCase {
     }
 
     void testLoadExternalBeans() {
-        def pr = new org.springframework.core.io.support.PathMatchingResourcePatternResolver()
+        def pr = new PathMatchingResourcePatternResolver()
         def r = pr.getResource("grails/spring/resources1.groovy")
 
         def bb = new BeanBuilder()

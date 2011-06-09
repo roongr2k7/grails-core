@@ -4,11 +4,11 @@ import grails.util.GrailsWebUtil
 import org.codehaus.groovy.grails.commons.DefaultGrailsApplication
 import org.codehaus.groovy.grails.plugins.CoreGrailsPlugin
 import org.codehaus.groovy.grails.plugins.DefaultGrailsPluginManager
+import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.web.context.request.RequestContextHolder
 import spock.lang.Specification
-import org.springframework.mock.web.MockHttpServletRequest
 
-/**
+ /**
  * Tests for the {@link DefaultLinkGenerator} class
  */
 class LinkGeneratorSpec extends Specification {
@@ -18,16 +18,46 @@ class LinkGeneratorSpec extends Specification {
     def resource = null
     def linkParams = [:]
     def pluginManager
-    
-    def mainCssResource = [dir:'css', file:'main.css']
 
+    def mainCssResource = [dir:'css', file:'main.css']
 
     def "Test create link with root URI"() {
         when:
             linkParams.uri = '/'
 
         then:
-            link == '/'
+            link == '/bar/'
+
+        when:
+            linkParams.uri = ''
+
+        then:
+            link == '/bar'
+    }
+
+    def "Test create relative link with custom context"() {
+        when: "No custom context path specified"
+            linkParams.controller = 'one'
+            linkParams.action = 'two'
+
+        then: "The default is used"
+            link == '/bar/one/two'
+
+        when: "A custom context path is specified"
+            linkParams.contextPath = '/different'
+            linkParams.controller = 'one'
+            linkParams.action = 'two'
+
+        then: "The custom context path is used"
+            link == '/different/one/two'
+
+       when: "A blank context path is specified"
+            linkParams.contextPath = ''
+            linkParams.controller = 'one'
+            linkParams.action = 'two'
+
+        then: "No context path is used"
+            link == '/one/two'
     }
 
     def "absolute links contains the base url and context when cached"() {
@@ -70,11 +100,11 @@ class LinkGeneratorSpec extends Specification {
     def "plugin paths are resolved with the plugin attribute"() {
         given:
             plugins = [CoreGrailsPlugin]
-        
+
         and:
             def pluginName = "core"
             def pluginVersion = pluginManager.getGrailsPlugin(pluginName).version
-            
+
         when:
             resource = mainCssResource + [plugin: pluginName]
 
@@ -85,7 +115,7 @@ class LinkGeneratorSpec extends Specification {
     def "link contains given explicit context path"() {
         given:
             def customContextPath = "/test"
-            
+
         when:
             resource = mainCssResource + [contextPath: customContextPath]
 
@@ -96,13 +126,14 @@ class LinkGeneratorSpec extends Specification {
     def "link has no context path if blank context supplied"() {
         given:
             def customContextPath = ""
-            
+
         when:
             resource = mainCssResource + [contextPath: customContextPath]
 
         then:
             link == "/$resource.dir/$resource.file"
     }
+
 
     def "test absolute links created from request scheme"() {
 
@@ -140,6 +171,13 @@ class LinkGeneratorSpec extends Specification {
 
     protected getGenerator(boolean cache=false) {
         def generator = cache ? new CachingLinkGenerator(baseUrl, context) : new DefaultLinkGenerator(baseUrl, context)
+        def urlMappingsHolder = [getReverseMapping:{ String controller, String action, Map params ->
+            [createRelativeURL: { String c, String a, Map parameterValues, String encoding, String fragment ->
+                "/$controller/$action".toString()
+            }] as UrlCreator
+        }] as UrlMappingsHolder
+
+        generator.urlMappingsHolder = urlMappingsHolder
         if (pluginManager) {
             generator.pluginManager = pluginManager
         }
@@ -147,7 +185,7 @@ class LinkGeneratorSpec extends Specification {
     }
 
     protected getLink() {
-        if(resource != null) {
+        if (resource != null) {
             getGenerator().resource(resource)
         }
         else {
@@ -156,13 +194,12 @@ class LinkGeneratorSpec extends Specification {
     }
 
     protected getCachedLink() {
-        if(resource != null) {
+        if (resource != null) {
             getGenerator(true).resource(resource)
         }
         else {
             getGenerator(true).link(linkParams)
         }
-
     }
 
     protected setPlugins(List<Class> pluginClasses) {

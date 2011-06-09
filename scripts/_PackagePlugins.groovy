@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import groovyx.gpars.Parallelizer;
+import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 
 import org.codehaus.groovy.grails.plugins.GrailsPluginInfo
 
@@ -27,7 +28,8 @@ import org.codehaus.groovy.grails.plugins.GrailsPluginInfo
  */
 
 packageFiles = { String from ->
-	def ant = new AntBuilder()
+    console.updateStatus "Packaging plugins"
+    def ant = new AntBuilder(ant.project)
     def targetPath = grailsSettings.resourcesDir.path
     def dir = new File(from, "grails-app/conf")
     if (dir.exists()) {
@@ -71,26 +73,27 @@ packageFiles = { String from ->
 target(packagePlugins : "Packages any Grails plugins that are installed for this project") {
     depends(classpath, resolveDependencies)
 
-	profile("Packaging plugin static files") {
-		Thread.start {
-			def pluginInfos = pluginSettings.getSupportedPluginInfos()
-			Parallelizer.withParallelizer {
-				pluginInfos.eachParallel{ GrailsPluginInfo info ->
-					try {
-						def pluginDir = info.pluginDir
-						if (pluginDir) {
-							def pluginBase = pluginDir.file
-							packageFiles(pluginBase.path)
-						}
-					}
-					catch (Exception e) {
-						println "Error packaging plugin [${info.name}] : ${e.message}"
-						exit 1
-					}
-				}
-			}
-		}
-	}
+    profile("Packaging plugin static files") {
+        Thread.start {
+            def pluginInfos = pluginSettings.getSupportedPluginInfos()
+            ExecutorService pool = Executors.newFixedThreadPool(5)
+            for (GrailsPluginInfo gpi in pluginInfos) {
+                pool.execute({ GrailsPluginInfo info ->
+                    try {
+                        def pluginDir = info.pluginDir
+                        if (pluginDir) {
+                            def pluginBase = pluginDir.file
+                            packageFiles(pluginBase.path)
+                        }
+                    }
+                    catch (Exception e) {
+                        console.error "Error packaging plugin [${info.name}] : ${e.message}"
+                        exit 1
+                    }
+                }.curry(gpi))
+            }
+        }
+    }
 }
 
 packagePluginsForWar = { targetDir ->
@@ -111,8 +114,7 @@ packagePluginsForWar = { targetDir ->
             }
         }
         catch (Exception e) {
-            e.printStackTrace(System.out)
-            println "Error packaging plugin [${info.name}] : ${e.message}"
+            console.error "Error packaging plugin [${info.name}] : ${e.message}", e
         }
     }
 }

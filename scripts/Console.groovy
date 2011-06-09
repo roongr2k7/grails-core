@@ -15,13 +15,17 @@
  */
 
 /**
- * Gant script that loads the Grails console
+ * Gant script that loads the Grails console.
  *
  * @author Graeme Rocher
  *
  * @since 0.4
  */
 
+import java.awt.event.FocusEvent
+import java.awt.event.FocusListener
+
+import org.codehaus.groovy.grails.compiler.GrailsProjectWatcher
 import org.codehaus.groovy.grails.support.*
 
 includeTargets << grailsScript("_GrailsBootstrap")
@@ -35,23 +39,20 @@ target(console:"The console implementation target") {
     depends(loadApp, configureApp)
 
     try {
-        def console = createConsole()
-        console.run()
-		def watcher = new org.codehaus.groovy.grails.compiler.GrailsProjectWatcher(projectCompiler, pluginManager)
-		watcher.start()
-		// keep the console running
-		while(true) {
-			sleep(Integer.MAX_VALUE)
-		}
+        createConsole().run()
+        def watcher = new GrailsProjectWatcher(projectCompiler, pluginManager)
+        watcher.start()
+        // keep the console running
+        while (true) {
+            sleep(Integer.MAX_VALUE)
+        }
     } catch (Exception e) {
         event("StatusFinal", ["Error starting console: ${e.message}"])
     }
 }
 
 createConsole = {
-    def b = new Binding()
-    b.ctx = appCtx
-    b.grailsApplication = grailsApp
+    def b = new Binding(ctx: appCtx, grailsApplication: grailsApp)
 
     def console = new groovy.ui.Console(grailsApp.classLoader, b)
     console.beforeExecution = {
@@ -69,11 +70,11 @@ createConsole = {
     return console
 }
 
-class ConsoleFocusListener implements java.awt.event.FocusListener{
+class ConsoleFocusListener implements FocusListener {
     String text
-    void focusGained(java.awt.event.FocusEvent e) {
+    void focusGained(FocusEvent e) {
         e.source.text = text
         e.source.removeFocusListener(this)
     }
-    void focusLost(java.awt.event.FocusEvent e){}
+    void focusLost(FocusEvent e) {}
 }

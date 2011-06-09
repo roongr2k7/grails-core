@@ -70,6 +70,8 @@ class RenderTagLib implements RequestConstants {
      *
      * &lt;g:include controller="foo" action="test"&gt;&lt;/g:include&gt;<br/>
      *
+     * @emptyTag
+     * 
      * @attr controller The name of the controller
      * @attr action The name of the action
      * @attr id The identifier
@@ -183,6 +185,8 @@ class RenderTagLib implements RequestConstants {
      * Used to retrieve a property of the decorated page.<br/>
      *
      * &lt;g:pageProperty default="defaultValue" name="body.onload" /&gt;<br/>
+     *
+     * @emptyTag
      * 
      * @attr REQUIRED name the property name
      * @attr default the default value to use if the property is null
@@ -270,6 +274,8 @@ class RenderTagLib implements RequestConstants {
      *
      * &lt;g:layoutTitle default="The Default title" /&gt;
      *
+     * @emptyTag
+     * 
      * @attr default the value to use if the title isn't specified in the GSP
      */
     def layoutTitle = { attrs ->
@@ -282,6 +288,9 @@ class RenderTagLib implements RequestConstants {
      * Used in layouts to render the body of a SiteMesh layout.<br/>
      *
      * &lt;g:layoutBody /&gt;
+     *
+     * @emptyTag
+     * 
      */
     def layoutBody = { attrs ->
         getPage().writeBody(out)
@@ -291,6 +300,9 @@ class RenderTagLib implements RequestConstants {
      * Used in layouts to render the head of a SiteMesh layout.<br/>
      *
      * &lt;g:layoutHead /&gt;
+     * 
+     * @emptyTag
+     * 
      */
     def layoutHead = { attrs ->
         getPage().writeHead(out)
@@ -300,6 +312,8 @@ class RenderTagLib implements RequestConstants {
      * Creates next/previous links to support pagination for the current controller.<br/>
      *
      * &lt;g:paginate total="${Account.count()}" /&gt;<br/>
+     *
+     * @emptyTag
      * 
      * @attr total REQUIRED The total number of results to paginate
      * @attr action the name of the action to use in the link, if not specified the default action will be linked
@@ -436,6 +450,8 @@ class RenderTagLib implements RequestConstants {
      * &lt;g:sortableColumn property="releaseDate" defaultOrder="desc" title="Release Date" /&gt;<br/>
      * &lt;g:sortableColumn property="releaseDate" defaultOrder="desc" title="Release Date" titleKey="book.releaseDate" /&gt;<br/>
      *
+     * @emptyTag
+     * 
      * @attr property - name of the property relating to the field
      * @attr defaultOrder default order for the property; choose between asc (default if not provided) and desc
      * @attr title title caption for the column
@@ -510,7 +526,7 @@ class RenderTagLib implements RequestConstants {
      * &lt;g:render template="atemplate" collection="${users}" /&gt;<br/>
      * &lt;g:render template="atemplate" model="[user:user,company:company]" /&gt;<br/>
      * &lt;g:render template="atemplate" bean="${user}" /&gt;<br/>
-     * 
+     *
      * @attr template REQUIRED The name of the template to apply
      * @attr contextPath the context path to use (relative to the application context path). Defaults to "" or path to the plugin for a plugin view or template.
      * @attr bean The bean to apply the template against
@@ -573,18 +589,18 @@ class RenderTagLib implements RequestConstants {
                 }
                 t = engine.createTemplateForUri(templateResolveOrder as String[])
 
-                if(t == null) {
+                if (t == null) {
                     GrailsPlugin pagePlugin = pageScope.getPagePlugin()
-                    if(pagePlugin instanceof BinaryGrailsPlugin) {
+                    if (pagePlugin instanceof BinaryGrailsPlugin) {
                         def binaryView = GrailsResourceUtils.appendPiecesForUri('/WEB-INF/grails-app/views', uri)
                         def viewClass = pagePlugin.resolveView(binaryView)
-                        if(viewClass != null) {
+                        if (viewClass != null) {
                             t = engine.createTemplate(viewClass)
                         }
                     }
-                    else if(pagePlugin != null) {
+                    else if (pagePlugin != null) {
                         def pluginPath = pm?.getPluginPath(pagePlugin.getName())
-                        if(pluginPath != null) {
+                        if (pluginPath != null) {
                             t = engine.createTemplateForUri(GrailsResourceUtils.appendPiecesForUri(pluginPath, '/grails-app/views', uri))
                         }
                     }

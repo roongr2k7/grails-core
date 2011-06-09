@@ -15,7 +15,10 @@
  */
 package org.grails.plugins.tomcat
 
- /**
+import org.codehaus.groovy.grails.cli.logging.GrailsConsoleAntBuilder
+import grails.build.logging.GrailsConsole
+
+/**
  * Serves a packaged war, in a forked JVM.
  */
 class IsolatedWarTomcatServer extends TomcatServer {
@@ -25,7 +28,7 @@ class IsolatedWarTomcatServer extends TomcatServer {
 
     protected final File warDir
     protected final String contextPath
-
+    protected ant = new GrailsConsoleAntBuilder()
     IsolatedWarTomcatServer(String warPath, String contextPath) {
         super()
 
@@ -47,7 +50,7 @@ class IsolatedWarTomcatServer extends TomcatServer {
             ant.java(classname: IsolatedTomcat.name, fork: true, failonerror: false, output: outFile, error: errFile, resultproperty: resultProperty) {
 
                 classpath {
-                    for (jar in buildSettings.compileDependencies.findAll { it.name.contains("tomcat") }) {
+                    for (jar in buildSettings.buildDependencies.findAll { it.name.contains("tomcat") }) {
                         pathelement location: jar
                     }
                 }
@@ -57,7 +60,7 @@ class IsolatedWarTomcatServer extends TomcatServer {
                 arg value: contextPath
                 arg value: host
                 arg value: httpPort
-                
+
                 if (httpsPort) {
                     arg value: httpsPort
                     arg value: keystoreFile.absolutePath
@@ -68,7 +71,7 @@ class IsolatedWarTomcatServer extends TomcatServer {
                     jvmarg value: a
                 }
 
-                for(entry in getConfigParams()) {
+                for (entry in getConfigParams()) {
                     sysproperty key:"tomcat.${entry.key}", value:"${entry.value}"
                 }
             }
@@ -108,7 +111,7 @@ class IsolatedWarTomcatServer extends TomcatServer {
             throw new RuntimeException("Tomcat failed to start the app in $timeoutSecs seconds (see output in $outFile.path)")
         }
 
-        println "Tomcat Server running WAR (output written to: $outFile)"
+        GrailsConsole.instance.log "Tomcat Server running WAR (output written to: $outFile)"
 
     }
 

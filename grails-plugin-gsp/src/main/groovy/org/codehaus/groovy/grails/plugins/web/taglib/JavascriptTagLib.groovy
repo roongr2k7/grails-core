@@ -38,6 +38,8 @@ class JavascriptTagLib  {
 
     GrailsPluginManager pluginManager
 
+    def resourceService
+
     /**
      * Includes a javascript src file, library or inline script
      * if the tag has no 'src' or 'library' attributes its assumed to be an inline script:<br/>
@@ -47,7 +49,7 @@ class JavascriptTagLib  {
      * The 'library' attribute will attempt to use the library mappings defined above to import the
      * right js files and not duplicate imports eg.<br/>
      *
-     * &lt;g:javascript library="scripaculous" /&gt; // imports all the necessary js for the scriptaculous library<br/>
+     * &lt;g:javascript library="scriptaculous" /&gt; // imports all the necessary js for the scriptaculous library<br/>
      *
      * The 'src' attribute will merely import the js file but within the right context (ie inside the /js/ directory of
      * the Grails application:<br/>
@@ -68,26 +70,30 @@ class JavascriptTagLib  {
             javascriptInclude(attrs)
         }
         else if (attrs.library) {
-            if (LIBRARY_MAPPINGS.containsKey(attrs.library)) {
-                LIBRARY_MAPPINGS[attrs.library].each {
-                    if (!request[INCLUDED_JS].contains(it)) {
-                        request[INCLUDED_JS] << it
-                        def newattrs = [:] + attrs
-                        newattrs.src = it + '.js'
-                        javascriptInclude(newattrs)
+            if (resourceService) {
+                out << r.require(module:attrs.library)
+            } else {
+                if (LIBRARY_MAPPINGS.containsKey(attrs.library)) {
+                    LIBRARY_MAPPINGS[attrs.library].each {
+                        if (!request[INCLUDED_JS].contains(it)) {
+                            request[INCLUDED_JS] << it
+                            def newattrs = [:] + attrs
+                            newattrs.src = it + '.js'
+                            javascriptInclude(newattrs)
+                        }
+                    }
+                    if (!request[INCLUDED_LIBRARIES].contains(attrs.library)) {
+                        request[INCLUDED_LIBRARIES] << attrs.library
                     }
                 }
-                if (!request[INCLUDED_LIBRARIES].contains(attrs.library)) {
-                    request[INCLUDED_LIBRARIES] << attrs.library
-                }
-            }
-            else {
-                if (!request[INCLUDED_LIBRARIES].contains(attrs.library)) {
-                    def newattrs = [:] + attrs
-                    newattrs.src = newattrs.remove('library') + '.js'
-                    javascriptInclude(newattrs)
-                    request[INCLUDED_LIBRARIES] << attrs.library
-                    request[INCLUDED_JS] << attrs.library
+                else {
+                    if (!request[INCLUDED_LIBRARIES].contains(attrs.library)) {
+                        def newattrs = [:] + attrs
+                        newattrs.src = newattrs.remove('library') + '.js'
+                        javascriptInclude(newattrs)
+                        request[INCLUDED_LIBRARIES] << attrs.library
+                        request[INCLUDED_JS] << attrs.library
+                    }
                 }
             }
         }
@@ -112,34 +118,27 @@ class JavascriptTagLib  {
             }
         }
 
-        def writer = out
-        writer << '<script type="text/javascript" src="'
-        if (!attrs.base) {
-            def baseUri = grailsAttributes.getApplicationUri(request)
-            writer << baseUri << (baseUri.endsWith('/') ? '' : '/')
-            if (requestPluginContext) {
-                writer << (requestPluginContext.startsWith("/") ? requestPluginContext.substring(1) : requestPluginContext)
-                writer << "/"
+        if (attrs.base) {
+            attrs.uri = attrs.remove('base') + attrs.remove('src')
+        } else {
+            def appBase = grailsAttributes.getApplicationUri(request)
+            if (!appBase.endsWith('/')) {
+                appBase += '/'
             }
-            writer << 'js/'
+            def reqResCtx = ''
+            if (requestPluginContext) {
+                reqResCtx = (requestPluginContext.startsWith("/") ? requestPluginContext.substring(1) : requestPluginContext) + '/'
+            }
+            attrs.uri = appBase + reqResCtx + 'js/'+attrs.remove('src')
         }
-        else {
-            writer << attrs.base
-        }
-
-        writer << attrs.src
-        writer << '"'
-        def otherAttrs = [:] + attrs
-        otherAttrs.remove('base')
-        otherAttrs.remove('src')
-        otherAttrs.remove('library')
-        otherAttrs.each {k, v -> writer << " $k=\"${v.encodeAsHTML()}\"" }
-        writer.println '></script>'
+        out << g.external(attrs)
     }
 
     /**
      * Creates a remote function call.
      *
+     * @emptyTag
+     * 
      * @attr before The javascript function to call before the remote function call
      * @attr after The javascript function to call after the remote function call
      * @attr update Either a map containing the elements to update for 'success' or 'failure' states, or a string with the element to update in which cause failure events would be ignored
@@ -244,6 +243,8 @@ class JavascriptTagLib  {
 
     /**
      * A field that sends its value to a remote link.
+     *
+     * @emptyTag
      * 
      * @attr name REQUIRED the name of the field
      * @attr value The initial value of the field
@@ -287,7 +288,7 @@ class JavascriptTagLib  {
 
     /**
      * A form which uses the javascript provider to serialize its parameters and submit via an asynchronous ajax call.
-     * 
+     *
      * @attr name REQUIRED The form name
      * @attr url REQUIRED The url to submit to as either a map (containing values for the controller, action, id, and params) or a URL string
      * @attr action The action to execute as a fallback, defaults to the url if non specified
@@ -320,7 +321,7 @@ a 'params' key to the [url] attribute instead.""")
         p.prepareAjaxForm(attrs)
 
         def params = [onsubmit:remoteFunction(attrs) + 'return false',
-                      method: (attrs.method? attrs.method : 'POST' ),
+                      method: (attrs.method? attrs.method : 'POST'),
                       action: (attrs.action? attrs.action : createLink(url))]
         attrs.remove('url')
         params.putAll(attrs)

@@ -25,8 +25,9 @@ import org.apache.ivy.util.Message
 import org.codehaus.groovy.grails.resolve.IvyDependencyManager
 import org.codehaus.groovy.grails.resolve.GrailsCoreDependencies
 import org.codehaus.groovy.runtime.StackTraceUtils
+import grails.build.logging.GrailsConsole
 
- /**
+/**
  * <p>Represents the project paths and other build settings
  * that the user can change when running the Grails commands. Defaults
  * are provided for all settings, but the user can override those by
@@ -278,12 +279,12 @@ class BuildSettings extends AbstractBuildSettings {
      * Setting for whether or not to enable verbose compilation, can be overridden via -verboseCompile(=[true|false])?
      */
     boolean verboseCompile = false
-    
+
     /**
      * Return whether the BuildConfig has been modified
      */
     boolean modified = false
-    
+
     final GrailsCoreDependencies coreDependencies
 
     private List<File> compileDependencies = []
@@ -521,7 +522,7 @@ class BuildSettings extends AbstractBuildSettings {
         }
 
         coreDependencies = new GrailsCoreDependencies(grailsVersion)
-        
+
         // If 'grailsHome' is set, add the JAR file dependencies.
         defaultPluginMap = [hibernate:grailsVersion, tomcat:grailsVersion]
         defaultPluginSet = defaultPluginMap.keySet()
@@ -648,9 +649,9 @@ class BuildSettings extends AbstractBuildSettings {
         projectWarExplodedDirSet = true
     }
 
-    boolean getConvertClosuresArtefacts(){ convertClosuresArtefacts }
+    boolean getConvertClosuresArtefacts() { convertClosuresArtefacts }
 
-    void setConvertClosuresArtefacts(boolean convert){
+    void setConvertClosuresArtefacts(boolean convert) {
         convertClosuresArtefacts = convert
         convertClosuresArtefactsSet = true
     }
@@ -767,7 +768,7 @@ class BuildSettings extends AbstractBuildSettings {
     ConfigObject loadConfig(ConfigObject config) {
         try {
             this.config.merge(config)
-            return this.config
+            return config
         }
         finally {
             postLoadConfig()
@@ -799,7 +800,7 @@ class BuildSettings extends AbstractBuildSettings {
                 def ois = new ObjectInputStream(input)
                 Map dependencyMap = ois.readObject()
 
-                if(dependencyMap?.values()*.any { !it.exists() }) {
+                if (dependencyMap?.values()*.any { !it.exists() }) {
                     modified = true
                 }
                 else {
@@ -899,13 +900,13 @@ class BuildSettings extends AbstractBuildSettings {
         dependencyManager = new IvyDependencyManager(appName,
                 appVersion, this, metadata)
 
+        def console = GrailsConsole.instance
         dependencyManager.transferListener = { TransferEvent e ->
             switch(e.eventType) {
                 case TransferEvent.TRANSFER_STARTED:
-                    println "Downloading: ${e.resource.name} ..."
-                break
-                case TransferEvent.TRANSFER_COMPLETED:
-                    println "Download complete."
+                    def resourceName = e.resource.name
+                    resourceName = resourceName[resourceName.lastIndexOf('/')+1..-1]
+                    console.updateStatus "Downloading: ${resourceName}"
                 break
             }
         } as TransferListener
@@ -1050,7 +1051,8 @@ class BuildSettings extends AbstractBuildSettings {
         }
 
         if (!convertClosuresArtefactsSet) {
-            convertClosuresArtefacts = getPropertyValue(CONVERT_CLOSURES_KEY, props,  '').toBoolean()
+            convertClosuresArtefacts = getPropertyValue(CONVERT_CLOSURES_KEY, props,  'false').toBoolean()
+            System.setProperty(CONVERT_CLOSURES_KEY, "$convertClosuresArtefacts")
         }
 
         if (!projectWarOsgiHeadersSet) {

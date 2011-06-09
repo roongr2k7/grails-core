@@ -52,7 +52,9 @@ public class GrailsDomainConfigurationUtilTests extends TestCase {
     @Override
     protected void tearDown() throws Exception {
         super.tearDown();
-        GrailsDomainBinder.namingStrategy = ImprovedNamingStrategy.INSTANCE;
+        GrailsDomainBinder.NAMING_STRATEGIES.clear();
+        GrailsDomainBinder.NAMING_STRATEGIES.put(
+              GrailsDomainClassProperty.DEFAULT_DATA_SOURCE, ImprovedNamingStrategy.INSTANCE);
         PluginManagerHolder.setPluginManager(null);
     }
 
@@ -108,8 +110,7 @@ public class GrailsDomainConfigurationUtilTests extends TestCase {
                 "       testString1 insertable:false \n" +
                 "       testString2 max:50 \n" +
                 "    }\n" +
-                "}")
-        );
+                "}"));
 
         getDomainConfig(cl, new Class[] { domainClass.getClazz() });
         Map<String, ConstrainedProperty> mapping = new HibernateConstraintsEvaluator().evaluate(domainClass.getClazz(), domainClass.getProperties());

@@ -16,12 +16,14 @@
 package org.codehaus.groovy.grails.orm.hibernate.cfg
 
 import grails.util.GrailsNameUtils
+
 import java.lang.reflect.Modifier
+
 import org.codehaus.groovy.grails.commons.GrailsDomainClass
-import org.codehaus.groovy.grails.plugins.orm.hibernate.HibernatePluginSupport
-import org.hibernate.SessionFactory
-import org.hibernate.criterion.CriteriaSpecification
 import org.codehaus.groovy.grails.orm.hibernate.metaclass.*
+import org.codehaus.groovy.grails.plugins.orm.hibernate.HibernatePluginSupport
+import org.grails.datastore.gorm.finders.FinderMethod
+import org.hibernate.criterion.CriteriaSpecification
 
 /**
  * A builder that implements the ORM named queries DSL.
@@ -36,23 +38,11 @@ class HibernateNamedQueriesBuilder {
 
     /**
      * @param domainClass the GrailsDomainClass defining the named queries
-     * @param grailsApplication a GrailsApplication instance
-     * @param ctx the main spring application context
+     * @param finders dynamic finders
      */
-    HibernateNamedQueriesBuilder(domainClass, grailsApplication, SessionFactory sessionFactory) {
+    HibernateNamedQueriesBuilder(domainClass, List<FinderMethod> finders) {
         this.domainClass = domainClass
-
-        def classLoader = grailsApplication.classLoader
-
-
-        dynamicMethods = [
-            new FindAllByPersistentMethod(grailsApplication, sessionFactory, classLoader),
-            new FindAllByBooleanPropertyPersistentMethod(grailsApplication, sessionFactory, classLoader),
-            new FindByPersistentMethod(grailsApplication, sessionFactory, classLoader),
-            new FindByBooleanPropertyPersistentMethod(grailsApplication, sessionFactory, classLoader),
-            new CountByPersistentMethod(grailsApplication, sessionFactory, classLoader),
-            new ListOrderByPersistentMethod(grailsApplication, sessionFactory, classLoader)
-        ]
+        dynamicMethods = finders
     }
 
     def evaluate(Closure namedQueriesClosure) {

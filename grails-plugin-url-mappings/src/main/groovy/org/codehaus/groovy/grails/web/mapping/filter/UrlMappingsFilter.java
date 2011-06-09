@@ -14,7 +14,6 @@
  */
 package org.codehaus.groovy.grails.web.mapping.filter;
 
-import grails.util.GrailsUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.groovy.grails.commons.ControllerArtefactHandler;
@@ -81,11 +80,11 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
         this.handlerInterceptors = WebUtils.lookupHandlerInterceptors(servletContext);
         this.application = WebUtils.lookupApplication(servletContext);
         this.viewResolver = WebUtils.lookupViewResolver(servletContext);
-        if(application != null) {
+        if (application != null) {
            grailsConfig = new GrailsConfig(application);
         }
 
-        if(applicationContext.containsBean(MimeType.BEAN_NAME)) {
+        if (applicationContext.containsBean(MimeType.BEAN_NAME)) {
             this.mimeTypes = applicationContext.getBean(MimeType.BEAN_NAME, MimeType[].class);
         }
     }
@@ -104,7 +103,7 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
 
         checkForCompilationErrors();
 
-        if(isUriExcluded(holder, uri)) {
+        if (isUriExcluded(holder, uri)) {
             processFilterChain(request, response, filterChain);
             return;
         }
@@ -140,7 +139,6 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
                 backupParameters = new HashMap(webRequest.getParams());
             }
             catch (Exception e) {
-                GrailsUtil.deepSanitize(e);
                 LOG.error("Error creating params object: " + e.getMessage(), e);
                 backupParameters = Collections.EMPTY_MAP;
             }
@@ -168,7 +166,6 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
                         }
                     }
                     catch (Exception e) {
-                        GrailsUtil.deepSanitize(e);
                         if (e instanceof MultipartException) {
                             throw ((MultipartException)e);
                         }
@@ -212,12 +209,13 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
 
     public static boolean isUriExcluded(UrlMappingsHolder holder, String uri) {
         boolean isExcluded = false;
+        @SuppressWarnings("unchecked")
         List<String> excludePatterns = holder.getExcludePatterns();
         if (excludePatterns != null && excludePatterns.size() > 0) {
             for (String excludePattern : excludePatterns) {
                 if (uri.equals(excludePattern) ||
                         (excludePattern.endsWith("*") &&
-                                excludePattern.substring(0,excludePattern.length() -1 ).regionMatches(0, uri, 0, excludePattern.length() - 1))) {
+                                excludePattern.substring(0,excludePattern.length() -1).regionMatches(0, uri, 0, excludePattern.length() - 1))) {
                     isExcluded = true;
                     break;
                 }
@@ -227,9 +225,9 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
     }
 
     private boolean areFileExtensionsEnabled() {
-        if(grailsConfig != null) {
+        if (grailsConfig != null) {
             final Boolean value = grailsConfig.get(WebUtils.ENABLE_FILE_EXTENSIONS, Boolean.class);
-            if(value != null) {
+            if (value != null) {
                 return value;
             }
         }
@@ -295,7 +293,6 @@ public class UrlMappingsFilter extends OncePerRequestFilter {
                 }
             }
             catch (Exception e) {
-                GrailsUtil.deepSanitize(e);
                 for (HandlerInterceptor handlerInterceptor : handlerInterceptors) {
                     try {
                         handlerInterceptor.afterCompletion(request, response, this, e);

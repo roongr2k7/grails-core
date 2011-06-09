@@ -15,7 +15,7 @@
  */
 
 import org.codehaus.groovy.grails.cli.support.GrailsBuildEventListener
-
+import org.codehaus.groovy.grails.cli.logging.*
 /**
  * Gant script containing the Grails build event system.
  *
@@ -38,14 +38,10 @@ eventsClassLoader = new GroovyClassLoader(classLoader)
 
 eventListener = new GrailsBuildEventListener(eventsClassLoader, binding, grailsSettings)
 eventListener.globalEventHooks = [
-    StatusFinal: [ {message -> userInterface.statusFinal(message) } ],
-    StatusBegin: [ {message -> userInterface.statusBegin(message) } ],
-    StatusUpdate: [ {message -> userInterface.statusUpdate(message) } ],
-    StatusEnd: [ {message -> userInterface.statusEnd(message) } ],
-    ProgressTicker: [ {message -> userInterface.progressTicker(message) } ],
-    ProgressString: [ {message -> userInterface.progressString(message) } ],
-    StatusError: [ {message -> System.err.println message } ],
-    CreatedArtefact: [ {artefactType, artefactName -> userInterface.statusBegin("Created $artefactType for $artefactName") } ]
+    StatusFinal: [ {message -> console.addStatus message } ],
+    StatusUpdate: [ {message -> console.updateStatus message } ],
+    StatusError: [ {message -> console.error message } ],
+    CreatedFile: [ {file -> console.addStatus "Created file $file" } ]
 ]
 
 hooksLoaded = false
@@ -59,13 +55,12 @@ eventListener.initialize()
 
 // Send a scripting event notification to any and all event hooks in plugins/user scripts
 event = {String name, args ->
-	try {
-    	eventListener.triggerEvent(name, * args)		
-	}
-	catch(e) {
-		println "Exception occurred trigger event [$name]: ${e.message}"
-	}
-
+    try {
+        eventListener.triggerEvent(name, * args)
+    }
+    catch(e) {
+        println "Exception occurred trigger event [$name]: ${e.message}"
+    }
 }
 
 // Give scripts a chance to modify classpath

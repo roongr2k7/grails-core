@@ -32,10 +32,11 @@ class Test2TagLib {
 class MyPage extends org.codehaus.groovy.grails.web.pages.GroovyPage {
     String getGroovyPageFileName() { "test" }
     def run() {
-        invokeTag("tag", "t1", [attr1:"test"]) {
+        setBodyClosure(1) {
             out << "foo"
             ""
         }
+        invokeTag("tag", "t1", -1, [attr1:"test"], 1)
         out << "hello" + tag2(test:"test2", new GroovyPageTagBody(this, webRequest, {
 
         }))
@@ -62,7 +63,7 @@ class MyPage extends org.codehaus.groovy.grails.web.pages.GroovyPage {
                                 out: webRequest.out ,
                                 webRequest:webRequest)
             script.binding = b
-            script.initRun(webRequest.out, webRequest, null)
+            script.initRun(webRequest.out, webRequest, ga, null)
             script.run()
 
             assertEquals "printblahfoohellotest2",sw.toString()

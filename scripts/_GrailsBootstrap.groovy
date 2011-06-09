@@ -54,10 +54,10 @@ target(loadApp:"Loads the Grails application object") {
             grailsApplication(DefaultGrailsApplication, ref("grailsResourceLoader"))
         }
     }
-    
+
     appCtx = beanDefinitions.createApplicationContext()
     def ctx = appCtx
-    
+
     // The mock servlet context needs to resolve resources relative to the 'web-app'
     // directory. We also need to use a FileSystemResourceLoader, otherwise paths are
     // evaluated against the classpath - not what we want!
@@ -72,7 +72,7 @@ target(loadApp:"Loads the Grails application object") {
     pluginManager = PluginManagerHolder.pluginManager
     pluginManager.application = grailsApp
     pluginManager.doArtefactConfiguration()
-    
+
     def builder = new WebBeanBuilder(ctx)
     newBeans = builder.beans {
         delegate."pluginManager"(MethodInvokingFactoryBean) {
@@ -83,7 +83,7 @@ target(loadApp:"Loads the Grails application object") {
     newBeans.beanDefinitions.each { name, definition ->
         ctx.registerBeanDefinition(name, definition)
     }
-    
+
     grailsApp.initialise()
     event("AppLoadEnd", ["Loading Grails Application"])
 }
@@ -94,7 +94,7 @@ target(configureApp:"Configures the Grails application and builds an Application
     profile("Performing runtime Spring configuration") {
         def configurer = new GrailsRuntimeConfigurator(grailsApp, appCtx)
         def jndiEntries = config?.grails?.naming?.entries
-        
+
         if (jndiEntries instanceof Map) {
             def jndiBindingSupport = new JndiBindingSupport(jndiEntries)
             jndiBindingSupport.bind()
@@ -103,6 +103,7 @@ target(configureApp:"Configures the Grails application and builds an Application
         servletContext.setAttribute(ApplicationAttributes.APPLICATION_CONTEXT,appCtx)
         servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, appCtx)
     }
+	applicationLoaded = true
     event("AppCfgEnd", ["Configuring Grails Application"])
 }
 
@@ -118,36 +119,18 @@ monitorRecompileCallback = {}
 
 target(monitorApp:"Monitors an application for changes using the PluginManager and reloads changes") {
     depends(classpath)
-    
-    long lastModified = classesDir.lastModified()
-    while(keepMonitoring) {
-        sleep(10000)
-        try {
-            pluginManager.checkForChanges()
-            
-            lastModified = recompileCheck(lastModified) {
-                compile()
-                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader()
-                classLoader = new URLClassLoader([classesDir.toURI().toURL()]as URL[], contextLoader.rootLoader)
-                Thread.currentThread().setContextClassLoader(classLoader)
-                // reload plugins
-                loadPlugins()
-                loadApp()
-                configureApp()
-                monitorRecompileCallback()
-            }
-        }
-        catch (Exception e) {
-            logError("Error recompiling application",e)
-        }
-        finally {
-            monitorCheckCallback()
-        }
-    }
+	// do nothing. Deprecated, purely here for compatibility
 }
 
 target(bootstrap: "Loads and configures a Grails instance") {
-    packageApp()
+	packageApp()
     loadApp()
     configureApp()
+}
+
+target(bootstrapOnce:"Loads and configures a Grails instance only if it is not already loaded and configured") {
+	if(!binding.variables.applicationLoaded) {
+		loadApp()
+		configureApp()
+	}
 }

@@ -24,6 +24,7 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.*;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.AbstractResource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -189,7 +190,7 @@ public class MockApplicationContext extends GroovyObjectSupport implements WebAp
     @SuppressWarnings("unchecked")
     public <T> T getBean(String name, Class<T> requiredType) throws BeansException {
         if (!beans.containsKey(name)) {
-            throw new NoSuchBeanDefinitionException( name);
+            throw new NoSuchBeanDefinitionException(name);
         }
 
         if (requiredType != null && !requiredType.isAssignableFrom(beans.get(name).getClass())) {
@@ -329,6 +330,10 @@ public class MockApplicationContext extends GroovyObjectSupport implements WebAp
 
     public void setServletContext(ServletContext servletContext) {
         this.servletContext = servletContext;
+    }
+
+    public Environment getEnvironment() {
+        return new org.springframework.web.context.support.DefaultWebEnvironment();
     }
 
     public class MockResource extends AbstractResource {

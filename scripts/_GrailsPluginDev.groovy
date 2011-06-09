@@ -56,9 +56,12 @@ target(packagePlugin: "Implementation target") {
 
     def descriptor = pluginSettings.getBasePluginDescriptor()
     plugin = generatePluginXml(descriptor.file, true)
-
     def pluginBaseDir = pluginFile.parentFile.absolutePath
     pluginInfo = pluginSettings.getPluginInfo(pluginBaseDir)
+
+    if(plugin?.hasProperty('pluginExcludes')) {
+        pluginInfo.pluginExcludes = plugin.pluginExcludes
+    }
 
     def resourceList = pluginSettings.getArtefactResourcesForOne(pluginBaseDir)
 
@@ -66,15 +69,15 @@ target(packagePlugin: "Implementation target") {
     packager.ant = ant
     packager.resourcesDir = new File(resourcesDirPath)
     packager.hasApplicationDependencies = grailsSettings.dependencyManager.hasApplicationDependencies()
-	if(argsMap.binary) {
-		pluginInfo.packaging = "binary"
-	}
-	else if(argsMap.source) {
-		pluginInfo.packaging = "source"
-	}
-	else if(plugin?.hasProperty('packaging')) {
-		pluginInfo.packaging = plugin.packaging
-	}
+    if (argsMap.binary) {
+        pluginInfo.packaging = "binary"
+    }
+    else if (argsMap.source) {
+        pluginInfo.packaging = "source"
+    }
+    else if (plugin?.hasProperty('packaging')) {
+        pluginInfo.packaging = plugin.packaging
+    }
 
     def pluginGrailsVersion = "${GrailsUtil.grailsVersion} > *"
     def lowerVersion = GrailsPluginUtils.getLowerVersion(pluginGrailsVersion)
@@ -84,7 +87,7 @@ target(packagePlugin: "Implementation target") {
         supportsAtLeastVersion = GrailsPluginUtils.supportsAtLeastVersion(lowerVersion, "1.2")
     }
     catch (e) {
-        println "Error: Plugin specified an invalid version range: ${pluginGrailsVersion}"
+        console.error "Error: Plugin specified an invalid version range: ${pluginGrailsVersion}"
         exit 1
     }
 
@@ -103,14 +106,13 @@ target(packagePlugin: "Implementation target") {
 
     event("PackagePluginStart", [pluginInfo.name])
 
-
     // Package plugin's zip distribution
     pluginZip = packager.packagePlugin(pluginInfo.name, classesDir, grailsSettings.projectTargetDir)
 
+	console.addStatus "Plugin packaged ${new File(pluginZip).name}"
 
     event("PackagePluginEnd", [pluginInfo.name])
 }
-
 
 private loadBasePlugin() {
     pluginManager?.allPlugins?.find { it.basePlugin }

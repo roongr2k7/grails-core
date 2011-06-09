@@ -85,11 +85,11 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
             establishFetchMode();
         }
 
-        if(descriptor.getReadMethod() == null || descriptor.getWriteMethod() == null) {
+        if (descriptor.getReadMethod() == null || descriptor.getWriteMethod() == null) {
             persistent = false;
         }
 
-        if(Errors.class.isAssignableFrom(type)) {
+        if (Errors.class.isAssignableFrom(type)) {
             persistent = false;
         }
     }
@@ -442,7 +442,7 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
     }
 
     public int getFetchMode() {
-        return fetchMode ;
+        return fetchMode;
     }
 
     public boolean isOwningSide() {
@@ -488,10 +488,9 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
             component = new ComponentDomainClass(getType());
 
             final GrailsDomainClass dc = getDomainClass();
-            if(dc instanceof ComponentCapableDomainClass) {
+            if (dc instanceof ComponentCapableDomainClass) {
                 ((ComponentCapableDomainClass) dc).addComponent(component);
             }
-
         }
     }
 
@@ -518,12 +517,12 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
         }
 
         if (o instanceof GrailsDomainClassProperty) {
-            if (!super.equals(o)){
+            if (!super.equals(o)) {
                 GrailsDomainClassProperty otherProp = (GrailsDomainClassProperty) o;
                 boolean namesMatch = otherProp.getName().equals(getName());
                 boolean typesMatch = otherProp.getReferencedPropertyType().equals(getReferencedPropertyType());
                 Class<?> myActualClass = getDomainClass().getClazz();
-                Class<?> otherActualClass = otherProp.getDomainClass().getClazz() ;
+                Class<?> otherActualClass = otherProp.getDomainClass().getClazz();
                 boolean classMatch = otherActualClass.isAssignableFrom(myActualClass) ||
                     myActualClass.isAssignableFrom(otherActualClass);
                 return namesMatch && typesMatch && classMatch;
@@ -566,8 +565,7 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
 
             List<DefaultGrailsDomainClassProperty> props = new ArrayList<DefaultGrailsDomainClassProperty>();
             Collection<String> embeddedNames = getEmbeddedList();
-            for (int i = 0; i < descriptors.length; i++) {
-                PropertyDescriptor descriptor = descriptors[i];
+            for (PropertyDescriptor descriptor : descriptors) {
                 if (isPersistentProperty(descriptor)) {
                     DefaultGrailsDomainClassProperty property = new DefaultGrailsDomainClassProperty(
                             this, descriptor);
@@ -633,7 +631,7 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
             return null;
         }
 
-        public GrailsDomainClassProperty getPersistentProperty(String name) {
+        public GrailsDomainClassProperty getPersistentProperty(@SuppressWarnings("hiding") String name) {
             return getPropertyByName(name);
         }
 
@@ -683,10 +681,7 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
         }
 
         public void refreshConstraints() {
-            GrailsDomainClassProperty[] props = getPersistentProperties();
-            constraints = GrailsDomainConfigurationUtil.evaluateConstraints(
-                    getClazz(),
-                    props);
+            constraints = new DefaultConstraintEvaluator().evaluate(getClazz(), getPersistentProperties());
         }
 
         public boolean hasSubClasses() {
@@ -707,6 +702,14 @@ public class DefaultGrailsDomainClassProperty implements GrailsDomainClassProper
 
         public void setMappingStrategy(String strategy) {
             // do nothing
+        }
+
+        public List<String> getDataSources() {
+            return Collections.singletonList(GrailsDomainClassProperty.DEFAULT_DATA_SOURCE);
+        }
+
+        public boolean usesDataSource(@SuppressWarnings("hiding") String name) {
+            return true;
         }
     }
 }

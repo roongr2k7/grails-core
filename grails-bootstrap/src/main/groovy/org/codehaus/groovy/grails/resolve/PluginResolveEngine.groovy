@@ -16,14 +16,14 @@
 package org.codehaus.groovy.grails.resolve
 
 import grails.util.BuildSettings
-import org.apache.ivy.core.module.id.ModuleRevisionId
-import org.apache.ivy.core.report.ResolveReport
+import groovy.util.slurpersupport.GPathResult
 import org.apache.ivy.core.cache.ArtifactOrigin
-import org.apache.ivy.plugins.resolver.DependencyResolver
-import org.apache.ivy.plugins.resolver.RepositoryResolver
+import org.apache.ivy.core.report.ResolveReport
 import org.apache.ivy.plugins.repository.Repository
 import org.apache.ivy.plugins.repository.Resource
-import groovy.util.slurpersupport.GPathResult
+import org.apache.ivy.plugins.resolver.DependencyResolver
+import org.apache.ivy.plugins.resolver.RepositoryResolver
+import grails.build.logging.GrailsConsole
 
 /**
  * Utility methods for resolving plugin zips and information
@@ -36,7 +36,7 @@ final class PluginResolveEngine {
 
     IvyDependencyManager dependencyManager
     BuildSettings settings
-    Closure messageReporter = { it ? println(it) : println() }
+    Closure messageReporter = { if(it) GrailsConsole.instance.updateStatus(it)  }
 
     PluginResolveEngine(IvyDependencyManager dependencyManager, BuildSettings settings) {
         this.dependencyManager = dependencyManager
@@ -91,7 +91,7 @@ final class PluginResolveEngine {
 
         def reports = report.getArtifactsReports(null, false)
         def artifactReport = reports.find { it.artifact.attributes.organisation == resolveArgs.group && it.artifact.name == resolveArgs.name && (pluginVersion == null || it.artifact.moduleRevisionId.revision == pluginVersion) }
-        if(artifactReport == null) {
+        if (artifactReport == null) {
             artifactReport = reports.find { it.artifact.name == pluginName && (pluginVersion == null || it.artifact.moduleRevisionId.revision == pluginVersion) }
         }
         if (artifactReport) {
