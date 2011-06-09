@@ -58,21 +58,6 @@ public class CommandLineHelper {
         return GrailsConsole.getInstance().userInput(message);
     }
     
-    protected void showInputMessage(String message, String responses) {
-        out.print(message);
-        if (responses != null) {
-            out.print(" [");
-            out.print(responses);
-            out.print("] ");
-        }
-    }
-
-    protected void printMessage(String message) {
-        out.println();
-        out.println(message);
-        out.println();
-    }
-
     /**
      * Replacement for AntBuilder.input() to eliminate dependency of
      * GrailsScriptRunner on the Ant libraries. Prints a message and

@@ -35,10 +35,6 @@ public class CommandLineInputHandler implements InputHandler {
     public CommandLineInputHandler() {
     }
 
-    public CommandLineInputHandler(CommandLineHelper helper) {
-        this.commandLineHelper = helper;
-    }
-
     public void handleInput(InputRequest inputRequest) throws BuildException {
        String[] validInputs = null;
        if (inputRequest instanceof MultipleChoiceInputRequest) {

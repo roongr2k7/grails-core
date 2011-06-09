@@ -80,7 +80,7 @@ if (!System.getProperty("grails.env.set")) {
         System.setProperty(Environment.KEY, grailsEnv)
         System.setProperty(Environment.DEFAULT, "")
     }
-	console.category << grailsEnv
+//	console.category << grailsEnv
     System.setProperty("grails.env.set", "true")
 }
 

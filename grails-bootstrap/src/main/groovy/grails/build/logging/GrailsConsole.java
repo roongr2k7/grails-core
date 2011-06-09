@@ -100,7 +100,7 @@ public class GrailsConsole {
         terminal = Terminal.setupTerminal();
         reader = new ConsoleReader();
         reader.setCompletionHandler(new CandidateListCompletionHandler());
-        category.add("grails");
+//        category.add("grails");
         // bit of a WTF this, but see no other way to allow a customization indicator
         this.maxIndicatorString = new StringBuilder().append(indicator).append(indicator).append(indicator).append(indicator).append(indicator);
 
@@ -400,6 +400,24 @@ public class GrailsConsole {
 
 
     /**
+     * Displays a command prompt at which the user can type commands.
+     * @param msg The prompt text, including whatever terminator is
+     * required, e.g. "grails&gt;".
+     * @return The line of text entered by the user. May be a blank
+     * string.
+     */
+    public String commandPrompt(String msg) {
+//        addStatus(msg);
+        lastMessage = "";
+        try {
+            cursorMove = 0;
+            return reader.readLine(outputCategory(ansi(), msg + " ").reset().toString());
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading input: " + e.getMessage());
+        }
+    }
+
+    /**
      * Replacement for AntBuilder.input() to eliminate dependency of
      * GrailsScriptRunner on the Ant libraries. Prints a message and
      * returns whatever the user enters (once they press &lt;return&gt;).
@@ -408,11 +426,11 @@ public class GrailsConsole {
      * string.
      */
     public String userInput(String msg) {
-        addStatus(msg);
+//        addStatus(msg);
         lastMessage = "";
         try {
             cursorMove = 0;
-            return reader.readLine("> ");
+            return reader.readLine(msg);
         } catch (IOException e) {
             throw new RuntimeException("Error reading input: " + e.getMessage());
         }

@@ -58,7 +58,7 @@ class InteractiveMode {
         active = true
 
         while(active) {
-            def scriptName = userInput("Enter a script name to run. Use TAB for completion: ")
+            def scriptName = commandPrompt("grails>");
             try {
                 def trimmed = scriptName.trim()
                 if(trimmed) {

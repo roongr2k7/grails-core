@@ -203,7 +203,7 @@ public class GrailsScriptRunner {
             new InteractiveMode(build, scriptRunner).run();
         }
         else {
-            console.getCategory().push(script.inputName);
+//            console.getCategory().push(script.inputName);
             console.verbose("Base Directory: " + build.getBaseDir().getPath());
 
             try {
@@ -325,19 +325,6 @@ public class GrailsScriptRunner {
         this.out = outputStream;
     }
 
-    public PrintStream getConsoleOut() {
-        return this.consoleOut;
-    }
-
-    public void setConsoleOut(PrintStream outputStream) {
-        this.consoleOut = outputStream;
-    }
-
-    public void setUserInterface(UserInterface ui) {
-        this.ui = ui;
-        this.helper = new UserInterfaceCommandLineHelper(ui);
-    }
-
     public int executeCommand(String scriptName, String args) throws IOException {
         return executeCommand(scriptName, args, null);
     }
@@ -439,7 +426,6 @@ public class GrailsScriptRunner {
         else {
             binding = new GantBinding();
             setDefaultInputStream(binding);
-            setUIListener(binding);
 
             // Now find what scripts match the one requested by the user.
             boolean exactMatchFound = false;
